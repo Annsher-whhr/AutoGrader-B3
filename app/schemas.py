@@ -1,0 +1,83 @@
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+
+class TestCaseRead(BaseModel):
+    id: int
+    case_no: int
+    description: str
+    input_data: str | None = None
+    expected_output: str | None = None
+    score_weight: float
+    input_files_json: dict[str, str] | None = None
+    expected_files_json: dict[str, str] | None = None
+    call_args_json: Any = None
+    is_hidden: bool
+
+    model_config = {"from_attributes": True}
+
+
+class QuestionRead(BaseModel):
+    id: str
+    title: str
+    description: str
+    question_type: str
+    difficulty: str
+    language: str
+    time_limit_ms: int
+    memory_limit_mb: int
+    allowed_commands: list[str]
+    metadata_json: dict
+    status: str
+
+    model_config = {"from_attributes": True}
+
+
+class QuestionDetail(QuestionRead):
+    test_cases: list[TestCaseRead]
+
+
+class QuestionUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    difficulty: str | None = None
+    time_limit_ms: int | None = None
+    memory_limit_mb: int | None = None
+    allowed_commands: list[str] | None = None
+    metadata_json: dict | None = None
+    status: str | None = None
+
+
+class EvaluateRequest(BaseModel):
+    question_id: str
+    submitted_code: str = Field(min_length=1)
+    submission_id: str = "manual"
+    language: str = "shell"
+
+
+class StaticIssue(BaseModel):
+    code: str
+    message: str
+
+
+class EvaluationCaseResultRead(BaseModel):
+    case_id: str
+    description: str
+    passed: bool
+    score: float
+    actual_output: str | None = None
+    expected_output: str | None = None
+    error: str | None = None
+    execution_time_ms: float
+
+
+class EvaluationResponse(BaseModel):
+    question_id: str
+    submission_id: str
+    overall_score: float
+    passed_count: int
+    total_count: int
+    overall_comment: str
+    static_issues: list[StaticIssue]
+    case_results: list[EvaluationCaseResultRead]
