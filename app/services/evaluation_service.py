@@ -73,7 +73,7 @@ def _evaluate_api(db: Session, question: Question, payload: EvaluateRequest) -> 
     obtained = 0.0
     for case in question.test_cases:
         args = case.call_args_json or []
-        result = run_api_case(payload.submitted_code, entry_function, args)
+        result = run_api_case(payload.submitted_code, entry_function, args, timeout_ms=question.time_limit_ms)
         expected = case.expected_output
         # API 题当前采用“函数返回值转成字符串后比较”的方式判断是否通过。
         passed = result.error is None and result.actual_output == expected

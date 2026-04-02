@@ -1,15 +1,21 @@
-"""项目自带的示例题库数据。
+"""B3 的题目蓝图与附加测试数据。
 
-这些数据不会自动常驻数据库，
-而是在调用导入接口时，按这里定义的内容写入数据库。
+这里保留的是“判题必须依赖的结构化配置”，例如：
+- 题目标题
+- 题目类型
+- 允许命令
+- 测试用例输入文件
+- 评测所需的元数据
+
+真正的人类可读题面描述，后续会优先从 `problem.txt` 解析得到，
+而不是继续完全依赖这个文件里的硬编码 description。
 """
 
 
-SEEDED_QUESTIONS = [
+QUESTION_BLUEPRINTS = [
     {
         "id": "Q02",
         "title": "SSH 登录题",
-        "description": "使用 ssh 登录到 127.0.0.1，用户 user01，密码 12345678，登录后退出。",
         "question_type": "command",
         "difficulty": "EASY",
         "allowed_commands": ["ssh", "exit"],
@@ -21,7 +27,6 @@ SEEDED_QUESTIONS = [
     {
         "id": "Q03",
         "title": "基础系统命令",
-        "description": "who/uname/date/cal/cat 组合命令。",
         "question_type": "command",
         "difficulty": "EASY",
         "allowed_commands": ["who", "uname", "date", "cal", "cat"],
@@ -31,7 +36,6 @@ SEEDED_QUESTIONS = [
     {
         "id": "Q04",
         "title": "目录切换与文件合并",
-        "description": "cd/pwd/cat 组合操作。",
         "question_type": "command",
         "difficulty": "EASY",
         "allowed_commands": ["cd", "pwd", "cat"],
@@ -41,7 +45,6 @@ SEEDED_QUESTIONS = [
     {
         "id": "Q05",
         "title": "文件查看复制改名",
-        "description": "head/tail/ls/cp/mv 组合操作。",
         "question_type": "file",
         "difficulty": "MEDIUM",
         "allowed_commands": ["head", "tail", "ls", "cp", "mv"],
@@ -65,7 +68,6 @@ SEEDED_QUESTIONS = [
     {
         "id": "Q06",
         "title": "vi 与 chmod",
-        "description": "使用 vi 参数编辑文件，并调整权限。",
         "question_type": "file",
         "difficulty": "HARD",
         "allowed_commands": ["vi", "vim", "chmod"],
@@ -82,7 +84,6 @@ SEEDED_QUESTIONS = [
     {
         "id": "Q07",
         "title": "grep 与 sort",
-        "description": "grep/sort 文本处理。",
         "question_type": "file",
         "difficulty": "MEDIUM",
         "allowed_commands": ["grep", "sort"],
@@ -94,7 +95,6 @@ SEEDED_QUESTIONS = [
     {
         "id": "Q08",
         "title": "sed 文本筛选",
-        "description": "sed 查找 argument 所在行。",
         "question_type": "file",
         "difficulty": "MEDIUM",
         "allowed_commands": ["sed"],
@@ -106,7 +106,6 @@ SEEDED_QUESTIONS = [
     {
         "id": "Q09",
         "title": "awk 统计与筛选",
-        "description": "awk 处理 employee.txt。",
         "question_type": "file",
         "difficulty": "MEDIUM",
         "allowed_commands": ["awk"],
@@ -118,7 +117,6 @@ SEEDED_QUESTIONS = [
     {
         "id": "Q10",
         "title": "Shell 脚本输出非素数",
-        "description": "编写 shell 脚本输出 2-100 内非素数，禁止直接硬编码完整结果。",
         "question_type": "script",
         "difficulty": "HARD",
         "allowed_commands": ["for", "while", "if", "echo", "printf", "test", "expr"],
@@ -144,3 +142,16 @@ API_DEMO_QUESTION = {
         {"case_no": 2, "description": "零值", "call_args_json": [0, 7], "expected_output": "7", "score_weight": 1.0},
     ],
 }
+
+
+def build_seeded_questions(problem_sections: dict[int, str]) -> list[dict]:
+    """把题面解析结果和判题蓝图合并成可导入数据库的题目数据。"""
+
+    merged_questions: list[dict] = []
+    for blueprint in QUESTION_BLUEPRINTS:
+        question_no = int(blueprint["id"][1:])
+        description = problem_sections.get(question_no, "").strip()
+        payload = dict(blueprint)
+        payload["description"] = description or f"{payload['title']}（题面解析失败，当前使用保底描述）"
+        merged_questions.append(payload)
+    return merged_questions

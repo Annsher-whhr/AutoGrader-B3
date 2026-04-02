@@ -1,16 +1,12 @@
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
-from app.db import Base, engine, get_db
+from app.db import get_db
 from app.schemas import EvaluateRequest, EvaluationResponse, QuestionDetail, QuestionRead, QuestionUpdate, TestCaseRead
 from app.services.evaluation_service import evaluate_submission
 from app.services.question_service import get_question, import_seed_questions, list_questions
 
 
-# 项目启动时自动建表。
-# 这是一个教学/演示型项目，所以这里直接在启动时创建数据库表，
-# 省去单独跑迁移脚本的步骤。
-Base.metadata.create_all(bind=engine)
 app = FastAPI(title="AutoGrader B3", version="1.0.0")
 
 

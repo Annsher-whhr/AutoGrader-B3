@@ -6,9 +6,11 @@ os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
 
 from fastapi.testclient import TestClient
 
+from app.db import Base, engine
 from app.main import app
 
 
+Base.metadata.create_all(bind=engine)
 client = TestClient(app)
 
 
@@ -41,6 +43,17 @@ def test_question_list_detail_and_cases() -> None:
     cases = cases_response.json()
     assert len(cases) >= 1
     assert cases[0]["case_no"] == 1
+
+
+def test_import_uses_problem_txt_description() -> None:
+    """验证导题接口会把 problem.txt 中的原始题面写入题目描述。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.get("/api/v1/b3/questions/Q02")
+    assert response.status_code == 200
+    detail = response.json()
+    assert "使用ssh命令登录到127.0.0.1主机" in detail["description"]
+    assert "附件里只能包含linux命令" in detail["description"]
 
 
 def test_question_update() -> None:
@@ -143,6 +156,27 @@ def test_api_demo_forbidden_import_rejected() -> None:
     assert data["overall_score"] == 0.0
     assert data["passed_count"] == 0
     assert data["case_results"][0]["error"] is not None
+
+
+def test_api_demo_timeout_isolated_from_main_process() -> None:
+    """验证 API 题超时后会被安全终止，而不是卡住主服务进程。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    update_response = client.put(
+        "/api/v1/b3/questions/API_DEMO",
+        json={"time_limit_ms": 100},
+    )
+    assert update_response.status_code == 200
+
+    response = client.post(
+        "/api/v1/b3/evaluate",
+        json={"question_id": "API_DEMO", "submitted_code": "def add(a, b):\n    while True:\n        pass\n", "submission_id": "sub-api-timeout", "language": "python"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["overall_score"] == 0.0
+    assert data["passed_count"] == 0
+    assert "超时" in (data["case_results"][0]["error"] or "")
 
 
 def test_reference_answer_endpoint() -> None:

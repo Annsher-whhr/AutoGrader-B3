@@ -1,6 +1,11 @@
 import ast
+import json
+import subprocess
+import sys
 import time
 from dataclasses import dataclass
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 
@@ -20,6 +25,58 @@ class ApiRunResult:
 
 FORBIDDEN_IMPORTS = {"os", "sys", "subprocess", "socket", "ctypes", "pathlib", "shutil"}
 FORBIDDEN_CALLS = {"eval", "exec", "compile", "__import__", "open"}
+
+RUNNER_SCRIPT = """
+import json
+import sys
+import time
+from pathlib import Path
+
+
+def main() -> int:
+    payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+    namespace = {
+        "__builtins__": {
+            "len": len,
+            "range": range,
+            "sum": sum,
+            "min": min,
+            "max": max,
+            "abs": abs,
+        }
+    }
+    started = time.perf_counter()
+    try:
+        exec(payload["code"], namespace, namespace)
+        func = namespace.get(payload["entry_function"])
+        if not callable(func):
+            result = {
+                "actual_output": None,
+                "error": f"未找到可调用函数: {payload['entry_function']}",
+                "execution_time_ms": 0.0,
+            }
+        else:
+            actual = func(*payload["args"])
+            elapsed = (time.perf_counter() - started) * 1000
+            result = {
+                "actual_output": str(actual),
+                "error": None,
+                "execution_time_ms": elapsed,
+            }
+    except Exception as exc:
+        elapsed = (time.perf_counter() - started) * 1000
+        result = {
+            "actual_output": None,
+            "error": str(exc),
+            "execution_time_ms": elapsed,
+        }
+    print(json.dumps(result, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+""".strip()
 
 
 def _check_python_safety(code: str) -> list[str]:
@@ -46,7 +103,7 @@ def _check_python_safety(code: str) -> list[str]:
     return issues
 
 
-def run_api_case(code: str, entry_function: str, args: list[Any]) -> ApiRunResult:
+def run_api_case(code: str, entry_function: str, args: list[Any], timeout_ms: int = 2000) -> ApiRunResult:
     """执行 API 类型题目的用户代码。
 
     整个流程是：
@@ -60,19 +117,42 @@ def run_api_case(code: str, entry_function: str, args: list[Any]) -> ApiRunResul
     issues = _check_python_safety(code)
     if issues:
         return ApiRunResult(actual_output=None, error="; ".join(issues), execution_time_ms=0.0)
-    started = time.perf_counter()
-    # 这里只开放极少量安全的内置函数。
-    # 目的不是让用户代码“什么都能做”，而是只允许它完成题目要求的纯计算逻辑，
-    # 尽量减少访问文件系统、系统命令、网络等危险能力的机会。
-    namespace: dict[str, Any] = {"__builtins__": {"len": len, "range": range, "sum": sum, "min": min, "max": max, "abs": abs}}
     try:
-        exec(code, namespace, namespace)
-        func = namespace.get(entry_function)
-        if not callable(func):
-            return ApiRunResult(actual_output=None, error=f"未找到可调用函数: {entry_function}", execution_time_ms=0.0)
-        result = func(*args)
-        elapsed = (time.perf_counter() - started) * 1000
-        return ApiRunResult(actual_output=str(result), error=None, execution_time_ms=elapsed)
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            payload_path = tmp_path / "payload.json"
+            runner_path = tmp_path / "runner.py"
+            payload_path.write_text(
+                json.dumps({"code": code, "entry_function": entry_function, "args": args}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            runner_path.write_text(RUNNER_SCRIPT, encoding="utf-8")
+            completed = subprocess.run(
+                [sys.executable, str(runner_path), str(payload_path)],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                cwd=tmp,
+                timeout=max(timeout_ms / 1000, 0.1),
+                check=False,
+            )
+    except subprocess.TimeoutExpired:
+        return ApiRunResult(actual_output=None, error="执行超时。", execution_time_ms=float(timeout_ms))
     except Exception as exc:  # noqa: BLE001
-        elapsed = (time.perf_counter() - started) * 1000
-        return ApiRunResult(actual_output=None, error=str(exc), execution_time_ms=elapsed)
+        return ApiRunResult(actual_output=None, error=str(exc), execution_time_ms=0.0)
+
+    if completed.returncode != 0:
+        message = completed.stderr.strip() or completed.stdout.strip() or "子进程执行失败。"
+        return ApiRunResult(actual_output=None, error=message, execution_time_ms=0.0)
+
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        message = completed.stdout.strip() or "子进程返回了无法解析的结果。"
+        return ApiRunResult(actual_output=None, error=message, execution_time_ms=0.0)
+
+    return ApiRunResult(
+        actual_output=payload.get("actual_output"),
+        error=payload.get("error"),
+        execution_time_ms=float(payload.get("execution_time_ms", 0.0)),
+    )

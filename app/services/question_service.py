@@ -1,8 +1,11 @@
+from pathlib import Path
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import Question, TestCase
-from app.seed_data import API_DEMO_QUESTION, SEEDED_QUESTIONS
+from app.problem_parser import parse_problem_sections
+from app.seed_data import API_DEMO_QUESTION, build_seeded_questions
 
 
 def list_questions(db: Session) -> list[Question]:
@@ -27,17 +30,21 @@ def get_question(db: Session, question_id: str) -> Question | None:
 
 
 def import_seed_questions(db: Session) -> list[Question]:
-    """导入项目内置的示例题目。
+    """导入 B3 题库。
 
-    这个函数不是“每次都重新插入”，
-    而是会先检查数据库里是否已经有同 ID 的题目：
-    - 如果已有，就直接复用
-    - 如果没有，才新建并写入数据库
+    当前导入流程分两部分：
+    1. 从 `problem.txt` 解析题目正文描述
+    2. 用代码里的蓝图补齐判题所需的结构化配置
+
+    这样既能真正依赖原始题面文件，又能保留当前版本所需的测试数据和判题规则。
     """
 
     imported: list[Question] = []
     existing_ids = set(db.scalars(select(Question.id)).all())
-    for payload in SEEDED_QUESTIONS + [API_DEMO_QUESTION]:
+    problem_txt_path = Path(__file__).resolve().parents[2] / "problem.txt"
+    problem_sections = parse_problem_sections(problem_txt_path)
+    parsed_questions = build_seeded_questions(problem_sections)
+    for payload in parsed_questions + [API_DEMO_QUESTION]:
         if payload["id"] in existing_ids:
             existing = db.get(Question, payload["id"])
             if existing is not None:
