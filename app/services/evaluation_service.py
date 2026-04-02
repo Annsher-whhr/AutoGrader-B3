@@ -8,12 +8,27 @@ from app.schemas import EvaluateRequest, EvaluationCaseResultRead, EvaluationRes
 
 
 def evaluate_submission(db: Session, question: Question, payload: EvaluateRequest) -> EvaluationResponse:
+    """评测一次提交。
+
+    这是整个评测流程的总入口。
+    它会先看题目类型，再决定走哪条评测分支：
+    - `api` 题走 Python 函数执行逻辑
+    - 其他题走 shell / script 判题逻辑
+    """
+
     if question.question_type == "api":
         return _evaluate_api(db, question, payload)
     return _evaluate_shell(db, question, payload)
 
 
 def _evaluate_shell(db: Session, question: Question, payload: EvaluateRequest) -> EvaluationResponse:
+    """评测 shell / script 类型题目。
+
+    流程分两步：
+    1. 先做静态安全检查，避免危险内容进入后续流程
+    2. 再根据题目 ID 找到专门的判题函数进行校验
+    """
+
     static_issues = scan_script_code(payload.submitted_code) if question.question_type == "script" else scan_shell_code(payload.submitted_code, question.allowed_commands)
     if static_issues:
         return _persist_response(db, question, payload, 0.0, 0, 0, "代码安全检查未通过。", static_issues, [])
@@ -24,6 +39,8 @@ def _evaluate_shell(db: Session, question: Question, payload: EvaluateRequest) -
 
     case = question.test_cases[0]
     outcome = checker(payload.submitted_code)
+    # 当前 shell 类题目采用“单题单大用例”的模式：
+    # 只要整体通过，就给 100 分；否则给 0 分。
     score = 100.0 if outcome.passed else 0.0
     case_results = [
         EvaluationCaseResultRead(
@@ -42,6 +59,13 @@ def _evaluate_shell(db: Session, question: Question, payload: EvaluateRequest) -
 
 
 def _evaluate_api(db: Session, question: Question, payload: EvaluateRequest) -> EvaluationResponse:
+    """评测 API 类型题目。
+
+    这类题目的答案通常是一段 Python 函数实现，
+    所以这里会把用户代码真正执行起来，
+    然后拿每个测试用例去调用入口函数并比对返回值。
+    """
+
     entry_function = question.metadata_json.get("entry_function", "solve")
     case_results: list[EvaluationCaseResultRead] = []
     passed_count = 0
@@ -51,6 +75,7 @@ def _evaluate_api(db: Session, question: Question, payload: EvaluateRequest) -> 
         args = case.call_args_json or []
         result = run_api_case(payload.submitted_code, entry_function, args)
         expected = case.expected_output
+        # API 题当前采用“函数返回值转成字符串后比较”的方式判断是否通过。
         passed = result.error is None and result.actual_output == expected
         if passed:
             passed_count += 1
@@ -85,6 +110,13 @@ def _persist_response(
     static_issues: list[StaticIssue],
     case_results: list[EvaluationCaseResultRead],
 ) -> EvaluationResponse:
+    """把评测结果写入数据库，并组装成接口响应返回。
+
+    这样做的好处是：
+    - 前端能立刻拿到评测结果
+    - 后端也保留了完整的历史提交记录，方便后续追踪
+    """
+
     record = EvaluationRecord(
         submission_id=payload.submission_id,
         question_id=question.id,

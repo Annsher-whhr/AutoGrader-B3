@@ -1,5 +1,7 @@
 import os
 
+# 在导入应用之前，先强制把数据库切换成内存数据库。
+# 这样测试不会污染你本地真实数据库，跑完也会自动消失。
 os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
 
 from fastapi.testclient import TestClient
@@ -11,6 +13,8 @@ client = TestClient(app)
 
 
 def test_import_questions() -> None:
+    """验证导入题库接口是否能正常把内置题目写入数据库。"""
+
     response = client.post("/api/v1/b3/questions/import/problem-txt")
     assert response.status_code == 200
     data = response.json()
@@ -19,6 +23,8 @@ def test_import_questions() -> None:
 
 
 def test_q02_correct_answer() -> None:
+    """验证 Q02 的标准答案能拿到满分。"""
+
     client.post("/api/v1/b3/questions/import/problem-txt")
     response = client.post(
         "/api/v1/b3/evaluate",
@@ -31,6 +37,8 @@ def test_q02_correct_answer() -> None:
 
 
 def test_q10_hardcoded_answer_rejected() -> None:
+    """验证 Q10 会拒绝“直接把答案硬编码出来”的脚本。"""
+
     client.post("/api/v1/b3/questions/import/problem-txt")
     response = client.post(
         "/api/v1/b3/evaluate",
@@ -51,6 +59,8 @@ def test_q10_hardcoded_answer_rejected() -> None:
 
 
 def test_api_demo_runner() -> None:
+    """验证 API 类型题目的执行和比对流程是否正常。"""
+
     client.post("/api/v1/b3/questions/import/problem-txt")
     response = client.post(
         "/api/v1/b3/evaluate",

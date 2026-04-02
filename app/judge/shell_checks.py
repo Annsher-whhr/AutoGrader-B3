@@ -7,6 +7,12 @@ from tempfile import TemporaryDirectory
 
 @dataclass
 class CaseExecution:
+    """shell 判题函数统一返回的结果结构。
+
+    不同题目的检查逻辑虽然不一样，
+    但最后都会整理成同一种结构，方便上层评测服务统一处理。
+    """
+
     passed: bool
     actual_output: str | None
     expected_output: str | None
@@ -14,18 +20,37 @@ class CaseExecution:
 
 
 def _split_lines(code: str) -> list[str]:
+    """把提交内容按行拆开，并去掉空行。
+
+    这样后面的判题逻辑只需要关心真正有内容的命令行。
+    """
+
     return [line.strip() for line in code.splitlines() if line.strip()]
 
 
 def _tokens(line: str) -> list[str]:
+    """把一行 shell 命令拆成参数列表。
+
+    这里使用 `shlex.split()`，
+    它比普通的字符串 `split()` 更适合处理带引号的 shell 命令。
+    """
+
     return shlex.split(line)
 
 
 def _normalize_space(text: str) -> str:
+    """把连续空白压缩成一个空格。
+
+    这样可以避免用户只是通过换行、多个空格等格式变化，
+    来绕过“是否硬编码结果”的简单检查。
+    """
+
     return re.sub(r"\s+", " ", text.strip())
 
 
 def check_q02(code: str) -> CaseExecution:
+    """检查 Q02 的答案是否是符合要求的 SSH 登录命令。"""
+
     lines = _split_lines(code)
     if len(lines) != 1:
         return CaseExecution(False, str(lines), "1 line", "答案应只包含 1 行 ssh 命令。")
@@ -36,6 +61,12 @@ def check_q02(code: str) -> CaseExecution:
 
 
 def check_q03(code: str) -> CaseExecution:
+    """检查 Q03。
+
+    这道题要求提交固定顺序的 5 条系统命令，
+    所以这里会逐行拆开，然后按顺序逐条校验。
+    """
+
     lines = _split_lines(code)
     expected = [
         lambda t: t[:2] == ["who", "-b"] or t == ["who", "--boot"],
@@ -53,6 +84,8 @@ def check_q03(code: str) -> CaseExecution:
 
 
 def check_q04(code: str) -> CaseExecution:
+    """检查 Q04 的目录切换与文件拼接命令序列。"""
+
     lines = _split_lines(code)
     validators = [
         lambda t: t == ["cd", "week5_6"],
@@ -70,6 +103,8 @@ def check_q04(code: str) -> CaseExecution:
 
 
 def check_q05(code: str) -> CaseExecution:
+    """检查 Q05 的文件查看、复制、重命名命令。"""
+
     lines = _split_lines(code)
     validators = [
         lambda t: t == ["head", "-5", "week5_11.txt"],
@@ -82,6 +117,9 @@ def check_q05(code: str) -> CaseExecution:
         return CaseExecution(False, str(lines), "5 lines", "答案必须为 5 行命令。")
     with TemporaryDirectory() as tmp:
         root = Path(tmp)
+        # 这里临时构造出题目里约定的文件环境。
+        # 虽然当前校验主要还是看命令结构，但把场景数据写清楚，
+        # 后续如果想升级成更真实的执行型校验，会更容易扩展。
         (root / "week5_11.txt").write_text("1\n2\n3\n4\n5\n6\n", encoding="utf-8")
         (root / "week5_12.txt").write_text("a\nb\nc\nd\ne\nf\n", encoding="utf-8")
         (root / "week5_14.log").write_text("copy me\n", encoding="utf-8")
@@ -95,6 +133,13 @@ def check_q05(code: str) -> CaseExecution:
 
 
 def check_q06(code: str) -> CaseExecution:
+    """检查 Q06。
+
+    这道题允许两种 chmod 写法：
+    - 符号模式，例如 `u+x,g-w,o=r`
+    - 数字模式，例如 `754`
+    """
+
     lines = _split_lines(code)
     if len(lines) != 2:
         return CaseExecution(False, str(lines), "2 lines", "答案必须为 2 行命令。")
@@ -109,6 +154,13 @@ def check_q06(code: str) -> CaseExecution:
 
 
 def check_q07(code: str) -> CaseExecution:
+    """检查 Q07 的 grep / sort 管道命令结构。
+
+    这里不是逐字符完全匹配，
+    而是检查关键命令和关键参数有没有出现。
+    这样可以允许用户在不影响正确性的前提下有一些写法差异。
+    """
+
     lines = _split_lines(code)
     validations = [
         lambda line: "grep" in line and "-i" in line and "-c" in line and "linux" in line.lower() and "week7.txt" in line,
@@ -126,6 +178,8 @@ def check_q07(code: str) -> CaseExecution:
 
 
 def check_q08(code: str) -> CaseExecution:
+    """检查 Q08 的两条 sed 命令。"""
+
     lines = _split_lines(code)
     if len(lines) != 2:
         return CaseExecution(False, str(lines), "2 lines", "答案必须为 2 行命令。")
@@ -139,6 +193,8 @@ def check_q08(code: str) -> CaseExecution:
 
 
 def check_q09(code: str) -> CaseExecution:
+    """检查 Q09 的 awk 统计与筛选命令。"""
+
     lines = _split_lines(code)
     if len(lines) != 2:
         return CaseExecution(False, str(lines), "2 lines", "答案必须为 2 行命令。")
@@ -152,6 +208,18 @@ def check_q09(code: str) -> CaseExecution:
 
 
 def check_q10(code: str) -> CaseExecution:
+    """检查 Q10 的脚本题答案。
+
+    这道题的重点不是“把正确结果写出来”，
+    而是“通过脚本逻辑算出来”。
+
+    所以这里会重点检查：
+    - 有没有直接把完整答案硬编码进去
+    - 有没有循环结构
+    - 有没有条件判断
+    - 有没有输出语句
+    """
+
     expected = "4,6,8,9,10,12,14,15,16,18,20,21,22,24,25,26,27,28,30,32,33,34,35,36,38,39,40,42,44,45,46,48,49,50,51,52,54,55,56,57,58,60,62,63,64,65,66,68,69,70,72,74,75,76,77,78,80,81,82,84,85,86,87,88,90,91,92,93,94,95,96,98,99,100"
     compact = _normalize_space(code)
     if expected in compact and ("for " not in code and "while " not in code):
@@ -166,6 +234,8 @@ def check_q10(code: str) -> CaseExecution:
 
 
 CHECKERS = {
+    # 评测服务会根据题目 ID，从这里找到对应的判题函数。
+    # 这样新增题目时，只要补一个 `check_xx` 函数并注册到这里即可。
     "Q02": check_q02,
     "Q03": check_q03,
     "Q04": check_q04,

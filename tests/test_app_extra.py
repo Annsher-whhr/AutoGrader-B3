@@ -1,0 +1,156 @@
+import os
+
+# 在导入应用之前，先强制把数据库切换成内存数据库。
+# 这样测试不会污染本地真实数据库，测试进程结束后数据也会自动消失。
+os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
+
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+
+client = TestClient(app)
+
+
+def test_health_endpoint() -> None:
+    """验证健康检查接口能正常返回服务状态。"""
+
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_question_list_detail_and_cases() -> None:
+    """验证题目列表、详情和测试用例接口都能正常读取数据。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+
+    list_response = client.get("/api/v1/b3/questions")
+    assert list_response.status_code == 200
+    questions = list_response.json()
+    assert any(item["id"] == "Q02" for item in questions)
+
+    detail_response = client.get("/api/v1/b3/questions/Q02")
+    assert detail_response.status_code == 200
+    detail = detail_response.json()
+    assert detail["id"] == "Q02"
+    assert len(detail["test_cases"]) >= 1
+
+    cases_response = client.get("/api/v1/b3/questions/Q02/cases")
+    assert cases_response.status_code == 200
+    cases = cases_response.json()
+    assert len(cases) >= 1
+    assert cases[0]["case_no"] == 1
+
+
+def test_question_update() -> None:
+    """验证题目更新接口只会更新传入的字段。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.put(
+        "/api/v1/b3/questions/Q02",
+        json={"title": "新的题目标题", "difficulty": "HARD"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["title"] == "新的题目标题"
+    assert data["difficulty"] == "HARD"
+
+
+def test_missing_question_endpoints_return_404() -> None:
+    """验证查询或评测不存在的题目时会返回 404。"""
+
+    detail_response = client.get("/api/v1/b3/questions/NO_SUCH_QUESTION")
+    assert detail_response.status_code == 404
+
+    cases_response = client.get("/api/v1/b3/questions/NO_SUCH_QUESTION/cases")
+    assert cases_response.status_code == 404
+
+    evaluate_response = client.post(
+        "/api/v1/b3/evaluate",
+        json={"question_id": "NO_SUCH_QUESTION", "submitted_code": "echo ok", "submission_id": "missing", "language": "shell"},
+    )
+    assert evaluate_response.status_code == 404
+
+
+def test_q02_disallowed_command_rejected_by_static_scan() -> None:
+    """验证命令题会拦截不在白名单中的命令。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.post(
+        "/api/v1/b3/evaluate",
+        json={"question_id": "Q02", "submitted_code": "ls", "submission_id": "sub-q02-bad", "language": "shell"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["overall_score"] == 0.0
+    assert data["static_issues"]
+    assert any(issue["code"] == "COMMAND_NOT_ALLOWED" for issue in data["static_issues"])
+
+
+def test_q02_forbidden_shell_syntax_rejected() -> None:
+    """验证静态检查会拦截危险的 shell 拼接语法。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.post(
+        "/api/v1/b3/evaluate",
+        json={"question_id": "Q02", "submitted_code": "ssh user01@127.0.0.1 && whoami", "submission_id": "sub-q02-and", "language": "shell"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["overall_score"] == 0.0
+    assert any(issue["code"] == "FORBIDDEN_SHELL_SYNTAX" for issue in data["static_issues"])
+
+
+def test_q10_path_escape_rejected_by_static_scan() -> None:
+    """验证脚本题会拦截明显的路径越界访问。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.post(
+        "/api/v1/b3/evaluate",
+        json={"question_id": "Q10", "submitted_code": "cat ../secret.txt", "submission_id": "sub-q10-path", "language": "shell"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["overall_score"] == 0.0
+    assert any(issue["code"] == "PATH_ESCAPE" for issue in data["static_issues"])
+
+
+def test_q10_infinite_loop_pattern_rejected() -> None:
+    """验证脚本题会拦截明显的无限循环写法。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.post(
+        "/api/v1/b3/evaluate",
+        json={"question_id": "Q10", "submitted_code": "while true\ndo\n  echo x\ndone", "submission_id": "sub-q10-loop", "language": "shell"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["overall_score"] == 0.0
+    assert any(issue["code"] == "POSSIBLE_INFINITE_LOOP" for issue in data["static_issues"])
+
+
+def test_api_demo_forbidden_import_rejected() -> None:
+    """验证 API 题会拦截危险模块导入。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.post(
+        "/api/v1/b3/evaluate",
+        json={"question_id": "API_DEMO", "submitted_code": "import os\n\ndef add(a, b):\n    return a + b\n", "submission_id": "sub-api-import", "language": "python"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["overall_score"] == 0.0
+    assert data["passed_count"] == 0
+    assert data["case_results"][0]["error"] is not None
+
+
+def test_reference_answer_endpoint() -> None:
+    """验证参考答案接口能走通完整评测流程。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.post("/api/v1/b3/evaluate/answer/Q02")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["question_id"] == "Q02"
+    assert data["overall_score"] == 100.0

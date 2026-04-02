@@ -7,6 +7,14 @@ from app.db import Base
 
 
 class Question(Base):
+    """题目表。
+
+    这个模型保存一题的核心信息：
+    - 题目编号、标题、描述
+    - 题目类型，例如命令题、脚本题、API 题
+    - 判题所需的限制，例如允许的命令、时间限制、内存限制
+    """
+
     __tablename__ = "questions"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
@@ -28,6 +36,13 @@ class Question(Base):
 
 
 class TestCase(Base):
+    """测试用例表。
+
+    一道题可以对应多个测试用例。
+    对于 API 题，通常会真的逐个测试用例执行；
+    对于当前的 shell 题，很多时候是把第一条用例当成展示和记录用的信息。
+    """
+
     __tablename__ = "test_cases"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -46,6 +61,12 @@ class TestCase(Base):
 
 
 class EvaluationRecord(Base):
+    """提交记录表。
+
+    每当用户提交一次答案，就会生成一条评测记录。
+    这里保存的是“整次提交”的总体结果，比如总分、通过数、总体评语等。
+    """
+
     __tablename__ = "evaluation_records"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -66,6 +87,12 @@ class EvaluationRecord(Base):
 
 
 class EvaluationCaseResult(Base):
+    """单个测试用例的评测结果。
+
+    这张表和 `EvaluationRecord` 是一对多关系：
+    一次提交可以包含多个测试用例结果。
+    """
+
     __tablename__ = "evaluation_case_results"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
