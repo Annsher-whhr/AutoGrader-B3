@@ -1,9 +1,15 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+
+
+def utc_now() -> datetime:
+    """返回当前 UTC 时间，使用带时区的时间对象。"""
+
+    return datetime.now(UTC)
 
 
 class Question(Base):
@@ -28,8 +34,8 @@ class Question(Base):
     allowed_commands: Mapped[list[str]] = mapped_column(JSON, default=list)
     metadata_json: Mapped[dict] = mapped_column(JSON, default=dict)
     status: Mapped[str] = mapped_column(String(16), default="ACTIVE")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
     test_cases: Mapped[list["TestCase"]] = relationship(back_populates="question", cascade="all, delete-orphan")
     evaluation_records: Mapped[list["EvaluationRecord"]] = relationship(back_populates="question")
@@ -80,7 +86,7 @@ class EvaluationRecord(Base):
     overall_comment: Mapped[str] = mapped_column(Text, default="")
     static_issues: Mapped[list] = mapped_column(JSON, default=list)
     status: Mapped[str] = mapped_column(String(16), default="COMPLETED")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     question: Mapped["Question"] = relationship(back_populates="evaluation_records")
     case_results: Mapped[list["EvaluationCaseResult"]] = relationship(back_populates="record", cascade="all, delete-orphan")

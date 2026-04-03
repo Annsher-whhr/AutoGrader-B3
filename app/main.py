@@ -100,14 +100,14 @@ def evaluate_reference_answer(question_id: str, db: Session = Depends(get_db)) -
     reference_answers = {
         # 这里放的是每道题的参考答案，主要用于快速验证判题流程是否正常。
         "Q02": "ssh user01@127.0.0.1",
-        "Q03": "who -b\nuname -r\ndate +%Y|%m|%d_%H:%M\ncal 10 1949\ncat week5_5.txt",
+        "Q03": "who -b\nuname -r\ndate '+%Y|%m|%d_%H:%M'\ncal 10 1949\ncat week5_5.txt",
         "Q04": "cd week5_6\npwd\ncd ..\npwd\ncat week5_10_1.txt week5_10_2.txt week5_10_3.txt",
         "Q05": "head -5 week5_11.txt\ntail -5 week5_12.txt\nls -ali\ncp week5_14.log week5_14_dest\nmv week5_15.log week5_15.txt",
         "Q06": "vi +$'e week6_1.txt' +$':2' +$'i\\n[line22222222]' +$':5d' +x\nchmod u+x,g-w,o=r week6_2.dat",
-        "Q07": "grep -i -c 'linux' week7.txt\ngrep -c '^$' week7.txt\ngrep -vn ' ' week7.txt | grep -v '^$'\ngrep -E '^[0-9]+$' week7.txt | sort -nr\ngrep -E '^(The|You|One)' week7.txt | sort -r",
-        "Q08": "sed -n '/[Aa]rgument/=' week8.txt\nsed -n '/[Aa]rgument/{=;p;}' week8.txt",
+        "Q07": "grep -i -c 'linux' week7.txt\ngrep -c '^$' week7.txt\ngrep -vn ' ' week7.txt | grep -v '^[0-9]\\+:$'\ngrep -E '^[0-9]+$' week7.txt | sort -nr\ngrep -E '^(The|You|One)' week7.txt | sort -r",
+        "Q08": "sed -n '/[Aa]rgument/=' week8.txt\nsed -n '/[Aa]rgument/{=;p;}' week8.txt | sed 'N;s/\\n/:/'",
         "Q09": "awk '$4==\"sales\"{sum+=$5;count++} END{print sum/count}' employee.txt\nawk '$2==\"varun\"{print}' employee.txt",
-        "Q10": "for i in $(seq 2 100); do\n  c=0\n  for j in $(seq 2 $((i-1))); do\n    if [ $((i%j)) -eq 0 ]; then c=1; fi\n  done\n  if [ $c -eq 1 ]; then printf '%s,' \"$i\"; fi\ndone\n",
+        "Q10": "first=1\nfor i in {2..100}\ndo\n  c=0\n  for j in {2..99}\n  do\n    if [ $j -lt $i ]\n    then\n      r=$((i%j))\n      if [ $r -eq 0 ]\n      then\n        c=1\n      fi\n    fi\n  done\n  if [ $c -eq 1 ]\n  then\n    if [ $first -eq 1 ]\n    then\n      printf '%s' \"$i\"\n      first=0\n    else\n      printf ',%s' \"$i\"\n    fi\n  fi\ndone\nprintf '\\n'\n",
         "API_DEMO": "def add(a, b):\n    return a + b\n",
     }
     payload = EvaluateRequest(question_id=question_id, submitted_code=reference_answers[question_id], submission_id=f"answer-{question_id}", language=question.language)

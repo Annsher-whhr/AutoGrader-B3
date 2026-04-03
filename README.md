@@ -8,18 +8,18 @@
 
 - 题库导入、查询、更新
 - shell / script 题静态安全检查
-- 固定题规则判题
-- API 调用型代码执行框架
+- 动态执行式判题
+- Docker / 本地双后端沙盒
 - 评测记录落库与结果返回
-- 自动化测试覆盖 14 条核心路径
+- 自动化测试覆盖核心路径
 
-这版更适合教学演示和阶段验收，还不是通用 OJ，也还没有接入容器隔离、JWT 鉴权和 B2/B4 联调。
+这版更适合教学演示和阶段验收，还不是通用 OJ，也还没有接入 JWT 鉴权和 B2/B4 联调。
 
 ## 启动方式
 
 1. 安装依赖
 
-```powershell
+```bash
 pip install -r requirements.txt
 ```
 
@@ -28,18 +28,20 @@ pip install -r requirements.txt
 复制 `.env.example` 为 `.env` 并填写 `DATABASE_URL`。默认推荐 MySQL：
 
 ```env
-DATABASE_URL=mysql+pymysql://root:password@127.0.0.1:3306/autograder_b3?charset=utf8mb4
+DATABASE_URL=mysql+pymysql://root:123456@127.0.0.1:3306/autograder_b3?charset=utf8mb4
+SANDBOX_BACKEND=auto
+SANDBOX_DOCKER_IMAGE=autograder-b3-judge:latest
 ```
 
 3. 启动服务
 
-```powershell
+```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8003
 ```
 
 4. 初始化数据库结构
 
-```powershell
+```bash
 alembic upgrade head
 ```
 
@@ -66,9 +68,9 @@ POST /api/v1/b3/questions/import/problem-txt
   - 路径穿越检查
   - 死循环特征检查
 - 三类执行框架：
-  - `command` / `file`：基于固定题目规则的受控评测
-  - `script`：在规则判题前先做额外静态检查
-  - `api`：执行 Python 代码并调用指定入口函数
+  - `command` / `file`：在受控工作目录里真实执行命令并比对输出/文件结果
+  - `script`：先静态安全检查，再执行脚本并核验输出
+  - `api`：在统一沙盒里执行 Python 代码并调用指定入口函数
 - 结果输出：
   - 总评分
   - 用例通过数
@@ -81,12 +83,10 @@ POST /api/v1/b3/questions/import/problem-txt
 
 直接运行：
 
-```powershell
+```bash
 pytest -q
 ```
 
-当前测试结果基线是：
+完整 Ubuntu / Docker / MySQL 启动流程见 [docs/ubuntu_setup.md](/home/lenovo/b3/docs/ubuntu_setup.md)。
 
-```text
-14 passed
-```
+最终交付说明见 [FINAL_DELIVERY.md](/home/lenovo/b3/FINAL_DELIVERY.md)。

@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     default_time_limit_ms: int = 2000
     default_output_limit: int = 20000
     default_memory_limit_mb: int = 64
+    sandbox_backend: str = "auto"
+    sandbox_docker_image: str = "autograder-b3-judge:latest"
 
 
 @lru_cache(maxsize=1)

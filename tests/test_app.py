@@ -3,6 +3,8 @@ import os
 # 在导入应用之前，先强制把数据库切换成内存数据库。
 # 这样测试不会污染你本地真实数据库，跑完也会自动消失。
 os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
+os.environ["DEBUG"] = "true"
+os.environ["SANDBOX_BACKEND"] = "local"
 
 from fastapi.testclient import TestClient
 

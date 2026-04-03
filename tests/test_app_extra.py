@@ -3,7 +3,10 @@ import os
 # 在导入应用之前，先强制把数据库切换成内存数据库。
 # 这样测试不会污染本地真实数据库，测试进程结束后数据也会自动消失。
 os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
+os.environ["DEBUG"] = "true"
+os.environ["SANDBOX_BACKEND"] = "local"
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.db import Base, engine
@@ -177,6 +180,39 @@ def test_api_demo_timeout_isolated_from_main_process() -> None:
     assert data["overall_score"] == 0.0
     assert data["passed_count"] == 0
     assert "超时" in (data["case_results"][0]["error"] or "")
+
+
+@pytest.mark.parametrize("question_id", ["Q02", "Q03", "Q04", "Q05", "Q06", "Q07", "Q08", "Q09", "Q10"])
+def test_reference_answers_cover_dynamic_runner(question_id: str) -> None:
+    """验证 shell/file/script 题已经改成可执行式评测。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.post(f"/api/v1/b3/evaluate/answer/{question_id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["question_id"] == question_id
+    assert data["overall_score"] == 100.0
+    assert data["passed_count"] == data["total_count"]
+    assert data["case_results"][0]["execution_time_ms"] >= 0.0
+
+
+def test_q05_dynamic_judge_checks_file_state() -> None:
+    """验证文件题不只看命令文本，还会检查执行后的文件结果。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.post(
+        "/api/v1/b3/evaluate",
+        json={
+            "question_id": "Q05",
+            "submitted_code": "head -5 week5_11.txt\ntail -5 week5_12.txt\nls -ali\ncp week5_14.log week5_14_dest\nmv week5_15.log wrong.txt",
+            "submission_id": "sub-q05-wrong-state",
+            "language": "shell",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["overall_score"] == 0.0
+    assert "week5_15.txt" in (data["case_results"][0]["error"] or "")
 
 
 def test_reference_answer_endpoint() -> None:

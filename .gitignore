@@ -1,0 +1,9 @@
+.venv/
+.codex
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.db-journal
+.pytest_cache/
+.mypy_cache/
