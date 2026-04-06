@@ -64,6 +64,8 @@ class LocalSandbox(BaseSandbox):
         runner = list(command)
         prlimit = shutil.which("prlimit")
         if prlimit is not None:
+            # 本地回退模式下尽量用 prlimit 做资源限制，
+            # 避免直接在 Python 进程里设置 preexec_fn 影响测试线程模型。
             memory_bytes = max(memory_limit_mb, 32) * 1024 * 1024
             cpu_seconds = max(int(timeout_ms / 1000) + 1, 1)
             runner = [
@@ -128,6 +130,9 @@ class DockerSandbox(BaseSandbox):
         if shutil.which("docker") is None:
             raise SandboxExecutionError("docker command not found")
 
+        # Docker 模式下每次评测都启动一个一次性容器：
+        # 无网络、只读根文件系统、限制 CPU / 内存 / 进程数，
+        # 并把本次评测工作目录挂载到 /workspace。
         docker_command = [
             "docker",
             "run",
@@ -212,6 +217,7 @@ def get_sandbox() -> BaseSandbox:
         if not docker_backend_available(settings.sandbox_docker_image):
             raise SandboxExecutionError(f"Docker sandbox image is unavailable: {settings.sandbox_docker_image}")
         return DockerSandbox(settings.sandbox_docker_image)
+    # auto 模式优先走 Docker，只有镜像不可用时才回退到本地执行。
     if docker_backend_available(settings.sandbox_docker_image):
         return DockerSandbox(settings.sandbox_docker_image)
     return LocalSandbox()

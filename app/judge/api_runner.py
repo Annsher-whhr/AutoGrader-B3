@@ -24,6 +24,7 @@ def _check_python_safety(code: str) -> list[str]:
         return [f"语法错误: {exc.msg}"]
     issues: list[str] = []
     for node in ast.walk(tree):
+        # API 题允许提交函数实现，但不允许借助系统能力逃逸出题目环境。
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             names = [alias.name.split(".")[0] for alias in node.names]
             blocked = [name for name in names if name in FORBIDDEN_IMPORTS]

@@ -9,6 +9,8 @@ FORBIDDEN_CHARS = ["&&", "||", ">", ">>", "<", "`", "${", "|&"]
 
 
 def _contains_unquoted_semicolon(text: str) -> bool:
+    # 只拦截“命令分隔符”语义的分号；
+    # 如果分号出现在引号内，例如 awk / sed 脚本里，就不应该误判。
     in_single = False
     in_double = False
     escaped = False
@@ -31,6 +33,8 @@ def _contains_unquoted_semicolon(text: str) -> bool:
 
 
 def _contains_command_substitution(text: str) -> bool:
+    # 这里要区分 $(...) 和 $((...))：
+    # 前者是命令替换，风险更高；后者是算术展开，脚本题里可能合法使用。
     in_single = False
     in_double = False
     escaped = False
@@ -108,6 +112,7 @@ def scan_script_code(submitted_code: str) -> list[StaticIssue]:
     expected = "4,6,8,9,10,12,14,15,16,18,20,21,22,24,25,26,27,28,30,32,33,34,35,36,38,39,40,42,44,45,46,48,49,50,51,52,54,55,56,57,58,60,62,63,64,65,66,68,69,70,72,74,75,76,77,78,80,81,82,84,85,86,87,88,90,91,92,93,94,95,96,98,99,100"
     if "while true" in lowered or "while :" in lowered:
         issues.append(StaticIssue(code="POSSIBLE_INFINITE_LOOP", message="possible infinite loop detected"))
+    # 对 Q10 这类脚本题，直接把最终结果硬编码出来不算通过。
     if expected in submitted_code and ("for " not in lowered and "while " not in lowered):
         issues.append(StaticIssue(code="HARDCODED_EXPECTED_OUTPUT", message="hardcoded expected output detected"))
     return issues

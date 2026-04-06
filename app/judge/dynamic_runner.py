@@ -59,6 +59,8 @@ def _prepare_command_workspace(workspace: Path, question: Question, case: TestCa
     bin_dir = workspace / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
     if question.id == "Q02":
+        # Q02 不真的建立 SSH 会话，而是通过 mock ssh 记录调用参数，
+        # 用来判断用户是否写对了登录命令。
         _write_executable(
             bin_dir / "ssh",
             dedent(
@@ -70,6 +72,8 @@ def _prepare_command_workspace(workspace: Path, question: Question, case: TestCa
             ),
         )
     elif question.id == "Q03":
+        # 这些系统命令在不同机器上的输出不稳定，
+        # 用 mock 固定住结果后，判题才能保持一致。
         _write_executable(
             bin_dir / "who",
             dedent(
@@ -125,6 +129,7 @@ def _prepare_command_workspace(workspace: Path, question: Question, case: TestCa
             "fi\n",
         )
     elif question.id == "Q05":
+        # 这里只 mock 掉题目要求的 ls 展示格式，其余命令仍真实执行。
         _write_executable(
             bin_dir / "ls",
             dedent(
@@ -152,6 +157,8 @@ def _prepare_command_workspace(workspace: Path, question: Question, case: TestCa
         chmod_target = workspace / "week6_2.dat"
         if chmod_target.exists():
             chmod_target.chmod(0o754)
+        # Q06 的重点是“能否通过 vi 参数完成指定编辑”，
+        # 所以这里记录参数并按约定模拟编辑结果，不进入真实交互界面。
         _write_executable(
             bin_dir / "vi",
             "#!/usr/bin/env bash\n"
@@ -210,6 +217,9 @@ def _verify_shell_case(
         accepted = metadata.get("accepted_invocations", [])
         required_exit = metadata.get("required_exit_command", "exit")
         command_lines = [line.strip() for line in submitted_code.splitlines() if line.strip()]
+        # 当前版本按题面要求校验两件事：
+        # 1. ssh 登录目标正确
+        # 2. 登录成功后显式执行 exit 退出
         has_expected_exit = len(command_lines) >= 2 and command_lines[-1] == required_exit
         passed = invocation in accepted and has_expected_exit
         expected = "ssh user01@127.0.0.1\nexit"
@@ -272,6 +282,8 @@ def run_shell_case(question: Question, case: TestCase, submitted_code: str) -> D
         path_value = f"{workspace / 'bin'}:{os.environ.get('PATH', '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin')}"
         workspace_root = str(workspace)
         if sandbox.backend_name == "docker":
+            # Docker 容器里只能看到挂载进去的 /workspace，
+            # 不能继续使用宿主机临时目录的绝对路径。
             path_value = DOCKER_PATH
             workspace_root = "/workspace"
         env = {"WORKSPACE_ROOT": workspace_root, "PATH": path_value}
@@ -293,6 +305,8 @@ def run_python_case(question: Question, case: TestCase, submitted_code: str) -> 
     sandbox = get_sandbox()
     with TemporaryDirectory() as tmp:
         workspace = Path(tmp)
+        # API 题把“用户代码 + 入口函数名 + 调用参数”写成 payload，
+        # 再由 runner.py 在沙盒内统一执行。
         payload = {
             "code": submitted_code,
             "entry_function": question.metadata_json.get("entry_function", "solve"),
