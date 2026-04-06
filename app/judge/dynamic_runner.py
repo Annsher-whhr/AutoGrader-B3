@@ -190,7 +190,13 @@ def _build_submission_script(question: Question, submitted_code: str) -> str:
     )
 
 
-def _verify_shell_case(question: Question, case: TestCase, workspace: Path, run_result: SandboxRunResult) -> DynamicRunResult:
+def _verify_shell_case(
+    question: Question,
+    case: TestCase,
+    workspace: Path,
+    run_result: SandboxRunResult,
+    submitted_code: str,
+) -> DynamicRunResult:
     stdout = _normalize_output(run_result.stdout)
     stderr = _normalize_output(run_result.stderr)
     metadata = question.metadata_json
@@ -202,10 +208,18 @@ def _verify_shell_case(question: Question, case: TestCase, workspace: Path, run_
     if question.id == "Q02":
         invocation = (workspace / "ssh_invocation.log").read_text(encoding="utf-8").strip() if (workspace / "ssh_invocation.log").exists() else ""
         accepted = metadata.get("accepted_invocations", [])
-        passed = invocation in accepted
-        expected = "ssh user01@127.0.0.1"
-        actual = invocation or stdout
-        error = None if passed else "ssh 目标或用户不正确。"
+        required_exit = metadata.get("required_exit_command", "exit")
+        command_lines = [line.strip() for line in submitted_code.splitlines() if line.strip()]
+        has_expected_exit = len(command_lines) >= 2 and command_lines[-1] == required_exit
+        passed = invocation in accepted and has_expected_exit
+        expected = "ssh user01@127.0.0.1\nexit"
+        actual = "\n".join(command_lines) if command_lines else (invocation or stdout)
+        if invocation not in accepted:
+            error = "ssh 目标或用户不正确。"
+        elif not has_expected_exit:
+            error = "登录成功后需要执行 exit 退出登录。"
+        else:
+            error = None
         return DynamicRunResult(passed, actual, expected, error, run_result.execution_time_ms)
 
     if question.id == "Q04":
@@ -272,7 +286,7 @@ def run_shell_case(question: Question, case: TestCase, submitted_code: str) -> D
             )
         except SandboxExecutionError as exc:
             return DynamicRunResult(False, None, case.expected_output, str(exc), 0.0)
-        return _verify_shell_case(question, case, workspace, run_result)
+        return _verify_shell_case(question, case, workspace, run_result, submitted_code)
 
 
 def run_python_case(question: Question, case: TestCase, submitted_code: str) -> DynamicRunResult:

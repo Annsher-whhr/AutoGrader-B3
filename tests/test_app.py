@@ -32,12 +32,26 @@ def test_q02_correct_answer() -> None:
     client.post("/api/v1/b3/questions/import/problem-txt")
     response = client.post(
         "/api/v1/b3/evaluate",
-        json={"question_id": "Q02", "submitted_code": "ssh user01@127.0.0.1", "submission_id": "sub-q02", "language": "shell"},
+        json={"question_id": "Q02", "submitted_code": "ssh user01@127.0.0.1\nexit", "submission_id": "sub-q02", "language": "shell"},
     )
     assert response.status_code == 200
     data = response.json()
     assert data["overall_score"] == 100.0
     assert data["passed_count"] == 1
+
+
+def test_q02_missing_exit_rejected() -> None:
+    """验证 Q02 如果只登录不退出，会被判定为未完成。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.post(
+        "/api/v1/b3/evaluate",
+        json={"question_id": "Q02", "submitted_code": "ssh user01@127.0.0.1", "submission_id": "sub-q02-no-exit", "language": "shell"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["overall_score"] == 0.0
+    assert "exit" in (data["case_results"][0]["error"] or "")
 
 
 def test_q10_hardcoded_answer_rejected() -> None:

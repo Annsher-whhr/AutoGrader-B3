@@ -99,7 +99,7 @@ def evaluate_reference_answer(question_id: str, db: Session = Depends(get_db)) -
         raise HTTPException(status_code=404, detail="Question not found")
     reference_answers = {
         # 这里放的是每道题的参考答案，主要用于快速验证判题流程是否正常。
-        "Q02": "ssh user01@127.0.0.1",
+        "Q02": "ssh user01@127.0.0.1\nexit",
         "Q03": "who -b\nuname -r\ndate '+%Y|%m|%d_%H:%M'\ncal 10 1949\ncat week5_5.txt",
         "Q04": "cd week5_6\npwd\ncd ..\npwd\ncat week5_10_1.txt week5_10_2.txt week5_10_3.txt",
         "Q05": "head -5 week5_11.txt\ntail -5 week5_12.txt\nls -ali\ncp week5_14.log week5_14_dest\nmv week5_15.log week5_15.txt",

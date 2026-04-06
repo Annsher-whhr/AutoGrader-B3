@@ -90,3 +90,7 @@ pytest -q
 完整 Ubuntu / Docker / MySQL 启动流程见 [docs/ubuntu_setup.md](/home/lenovo/b3/docs/ubuntu_setup.md)。
 
 最终交付说明见 [FINAL_DELIVERY.md](/home/lenovo/b3/FINAL_DELIVERY.md)。
+
+项目整体详细说明见 [docs/B3_整体详细说明文档.md](/home/lenovo/b3/docs/B3_整体详细说明文档.md)。
+
+对其他组的接口接入说明见 [docs/B3_API_使用文档.md](/home/lenovo/b3/docs/B3_API_使用文档.md)。

@@ -19,9 +19,17 @@ QUESTION_BLUEPRINTS = [
         "question_type": "command",
         "difficulty": "EASY",
         "allowed_commands": ["ssh", "exit"],
-        "metadata_json": {"accepted_invocations": ["user01@127.0.0.1", "-l user01 127.0.0.1"]},
+        "metadata_json": {
+            "accepted_invocations": ["user01@127.0.0.1", "-l user01 127.0.0.1"],
+            "required_exit_command": "exit",
+        },
         "cases": [
-            {"case_no": 1, "description": "基础 SSH 命令", "expected_output": "ssh user01@127.0.0.1", "score_weight": 1.0}
+            {
+                "case_no": 1,
+                "description": "基础 SSH 登录并退出",
+                "expected_output": "ssh user01@127.0.0.1\nexit",
+                "score_weight": 1.0,
+            }
         ],
     },
     {
