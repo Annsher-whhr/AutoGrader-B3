@@ -54,8 +54,66 @@ def _collect_expected_files(root: Path, expected_files: dict[str, str] | None) -
     return mismatches
 
 
+def _snapshot_paths(root: Path, relative_paths: list[str]) -> dict[str, str | None]:
+    """记录一组路径在执行前的内容快照，用于后续检查只读文件是否被改动。"""
+
+    snapshot: dict[str, str | None] = {}
+    for relative_path in relative_paths:
+        target = root / relative_path
+        if target.exists() and target.is_file():
+            snapshot[relative_path] = target.read_text(encoding="utf-8")
+        else:
+            snapshot[relative_path] = None
+    return snapshot
+
+
+def _collect_readonly_modifications(root: Path, snapshot: dict[str, str | None]) -> list[str]:
+    """对比执行前快照与执行后结果，检查只读文件是否被修改。"""
+
+    mismatches: list[str] = []
+    for relative_path, expected_content in snapshot.items():
+        target = root / relative_path
+        if expected_content is None:
+            if target.exists():
+                mismatches.append(f"readonly path unexpectedly created: {relative_path}")
+            continue
+        if not target.exists():
+            mismatches.append(f"readonly path removed: {relative_path}")
+            continue
+        actual_content = target.read_text(encoding="utf-8")
+        if actual_content != expected_content:
+            mismatches.append(f"readonly path modified: {relative_path}")
+    return mismatches
+
+
+def _apply_path_permissions(workspace: Path, question: Question, case: TestCase) -> None:
+    """按题目元数据给输入文件设置只读或可写权限。
+
+    当前实现以“输入文件内容保护”为主：
+    - `readonly_paths` 中的文件会被 chmod 为 0444
+    - `writable_paths` 中的文件会被 chmod 为 0644
+
+    这样对于纯读取题，提交如果尝试修改输入文件，通常会直接因为权限不足而失败。
+    """
+
+    metadata = question.metadata_json or {}
+    readonly_paths = set(metadata.get("readonly_paths", []))
+    writable_paths = set(metadata.get("writable_paths", []))
+    input_paths = set((case.input_files_json or {}).keys())
+
+    for relative_path in input_paths:
+        target = workspace / relative_path
+        if not target.exists() or target.is_dir():
+            continue
+        if relative_path in writable_paths:
+            target.chmod(0o644)
+        elif relative_path in readonly_paths:
+            target.chmod(0o444)
+
+
 def _prepare_command_workspace(workspace: Path, question: Question, case: TestCase) -> None:
     _write_tree(workspace, case.input_files_json)
+    _apply_path_permissions(workspace, question, case)
     bin_dir = workspace / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
     if question.id == "Q02":
@@ -203,6 +261,7 @@ def _verify_shell_case(
     workspace: Path,
     run_result: SandboxRunResult,
     submitted_code: str,
+    readonly_snapshot: dict[str, str | None],
 ) -> DynamicRunResult:
     stdout = _normalize_output(run_result.stdout)
     stderr = _normalize_output(run_result.stderr)
@@ -239,6 +298,7 @@ def _verify_shell_case(
 
     if question.id == "Q05":
         mismatches = _collect_expected_files(workspace, case.expected_files_json)
+        mismatches.extend(_collect_readonly_modifications(workspace, readonly_snapshot))
         for relative_path in metadata.get("absent_paths", []):
             if (workspace / relative_path).exists():
                 mismatches.append(f"unexpected path exists: {relative_path}")
@@ -265,6 +325,7 @@ def _verify_shell_case(
 
     expected_output = case.expected_output or ""
     mismatches = _collect_expected_files(workspace, case.expected_files_json)
+    mismatches.extend(_collect_readonly_modifications(workspace, readonly_snapshot))
     if stdout != expected_output:
         mismatches.append("stdout mismatch")
     error = None if not mismatches else "；".join(mismatches)
@@ -277,6 +338,7 @@ def run_shell_case(question: Question, case: TestCase, submitted_code: str) -> D
     with TemporaryDirectory() as tmp:
         workspace = Path(tmp)
         _prepare_command_workspace(workspace, question, case)
+        readonly_snapshot = _snapshot_paths(workspace, question.metadata_json.get("readonly_paths", []))
         submission_script = workspace / "submission.sh"
         _write_executable(submission_script, _build_submission_script(question, submitted_code))
         path_value = f"{workspace / 'bin'}:{os.environ.get('PATH', '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin')}"
@@ -298,7 +360,7 @@ def run_shell_case(question: Question, case: TestCase, submitted_code: str) -> D
             )
         except SandboxExecutionError as exc:
             return DynamicRunResult(False, None, case.expected_output, str(exc), 0.0)
-        return _verify_shell_case(question, case, workspace, run_result, submitted_code)
+        return _verify_shell_case(question, case, workspace, run_result, submitted_code, readonly_snapshot)
 
 
 def run_python_case(question: Question, case: TestCase, submitted_code: str) -> DynamicRunResult:

@@ -38,7 +38,7 @@ QUESTION_BLUEPRINTS = [
         "question_type": "command",
         "difficulty": "EASY",
         "allowed_commands": ["who", "uname", "date", "cal", "cat"],
-        "metadata_json": {},
+        "metadata_json": {"readonly_paths": ["week5_5.txt"]},
         "cases": [
             {
                 "case_no": 1,
@@ -55,7 +55,10 @@ QUESTION_BLUEPRINTS = [
         "question_type": "command",
         "difficulty": "EASY",
         "allowed_commands": ["cd", "pwd", "cat"],
-        "metadata_json": {"expected_output_template": "{child}\n{root}\nalpha\nbeta\ngamma\n"},
+        "metadata_json": {
+            "expected_output_template": "{child}\n{root}\nalpha\nbeta\ngamma\n",
+            "readonly_paths": ["week5_10_1.txt", "week5_10_2.txt", "week5_10_3.txt", "week5_6/.keep"],
+        },
         "cases": [
             {
                 "case_no": 1,
@@ -76,7 +79,10 @@ QUESTION_BLUEPRINTS = [
         "question_type": "file",
         "difficulty": "MEDIUM",
         "allowed_commands": ["head", "tail", "ls", "cp", "mv"],
-        "metadata_json": {"absent_paths": ["week5_15.log"]},
+        "metadata_json": {
+            "absent_paths": ["week5_15.log"],
+            "readonly_paths": ["week5_11.txt", "week5_12.txt", "week5_14.log", ".hidden", "week5_14_dest/.keep"],
+        },
         "cases": [
             {
                 "case_no": 1,
@@ -101,7 +107,11 @@ QUESTION_BLUEPRINTS = [
         "question_type": "file",
         "difficulty": "HARD",
         "allowed_commands": ["vi", "vim", "chmod"],
-        "metadata_json": {"required_vi_markers": ["week6_1.txt", "line22222222", ":5d", "+x"], "expected_mode": "754"},
+        "metadata_json": {
+            "required_vi_markers": ["week6_1.txt", "line22222222", ":5d", "+x"],
+            "expected_mode": "754",
+            "writable_paths": ["week6_1.txt", "week6_2.dat"],
+        },
         "cases": [
             {
                 "case_no": 1,
@@ -118,7 +128,7 @@ QUESTION_BLUEPRINTS = [
         "question_type": "file",
         "difficulty": "MEDIUM",
         "allowed_commands": ["grep", "sort"],
-        "metadata_json": {},
+        "metadata_json": {"readonly_paths": ["week7.txt"]},
         "cases": [
             {
                 "case_no": 1,
@@ -135,7 +145,7 @@ QUESTION_BLUEPRINTS = [
         "question_type": "file",
         "difficulty": "MEDIUM",
         "allowed_commands": ["sed"],
-        "metadata_json": {},
+        "metadata_json": {"readonly_paths": ["week8.txt"]},
         "cases": [
             {
                 "case_no": 1,
@@ -152,7 +162,7 @@ QUESTION_BLUEPRINTS = [
         "question_type": "file",
         "difficulty": "MEDIUM",
         "allowed_commands": ["awk"],
-        "metadata_json": {},
+        "metadata_json": {"readonly_paths": ["employee.txt"]},
         "cases": [
             {
                 "case_no": 1,

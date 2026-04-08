@@ -215,6 +215,44 @@ def test_q05_dynamic_judge_checks_file_state() -> None:
     assert "week5_15.txt" in (data["case_results"][0]["error"] or "")
 
 
+def test_q08_readonly_input_file_cannot_be_modified() -> None:
+    """验证纯读取题的输入文件会被设置为只读，不能在答题时修改内容。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.post(
+        "/api/v1/b3/evaluate",
+        json={
+            "question_id": "Q08",
+            "submitted_code": "sed -i '1s/first/HACKED/' week8.txt\nsed -n '/[Aa]rgument/=' week8.txt",
+            "submission_id": "sub-q08-write-readonly",
+            "language": "shell",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["overall_score"] == 0.0
+    error_text = data["case_results"][0]["error"] or ""
+    assert "readonly path modified" in error_text or "命令退出码" in error_text or "Permission denied" in error_text
+
+
+def test_q06_writable_files_remain_modifiable() -> None:
+    """验证允许修改的文件不会被新的只读策略误伤。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.post(
+        "/api/v1/b3/evaluate",
+        json={
+            "question_id": "Q06",
+            "submitted_code": "vi +$'e week6_1.txt' +$':2' +$'i\\n[line22222222]' +$':5d' +x\nchmod u+x,g-w,o=r week6_2.dat",
+            "submission_id": "sub-q06-writable-check",
+            "language": "shell",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["overall_score"] == 100.0
+
+
 def test_reference_answer_endpoint() -> None:
     """验证参考答案接口能走通完整评测流程。"""
 
