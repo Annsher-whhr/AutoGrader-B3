@@ -7,6 +7,7 @@ class TestCaseRead(BaseModel):
     """返回给前端或调用方的“测试用例”数据结构。"""
 
     id: int
+    case_id: str
     case_no: int
     description: str
     input_data: str | None = None

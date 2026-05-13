@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.judge.api_runner import run_api_case
 from app.judge.dynamic_runner import run_shell_case
 from app.judge.security_checks import scan_script_code, scan_shell_code
-from app.models import EvaluationCaseResult, EvaluationRecord, Question
+from app.models import Question, Submission
 from app.schemas import EvaluateRequest, EvaluationCaseResultRead, EvaluationResponse, StaticIssue
 
 
@@ -35,7 +35,7 @@ def _evaluate_shell(db: Session, question: Question, payload: EvaluateRequest) -
         for case in question.test_cases:
             case_results.append(
                 EvaluationCaseResultRead(
-                    case_id=f"{question.id}_case_{case.case_no:02d}",
+                    case_id=case.case_id,
                     description=case.description,
                     passed=False,
                     score=0.0,
@@ -69,7 +69,7 @@ def _evaluate_shell(db: Session, question: Question, payload: EvaluateRequest) -
         total_weight += case.score_weight
         case_results.append(
             EvaluationCaseResultRead(
-                case_id=f"{question.id}_case_{case.case_no:02d}",
+                case_id=case.case_id,
                 description=case.description,
                 passed=passed,
                 score=100.0 * case.score_weight if passed else 0.0,
@@ -107,7 +107,7 @@ def _evaluate_api(db: Session, question: Question, payload: EvaluateRequest) -> 
         total_weight += case.score_weight
         case_results.append(
             EvaluationCaseResultRead(
-                case_id=f"{question.id}_case_{case.case_no:02d}",
+                case_id=case.case_id,
                 description=case.description,
                 passed=passed,
                 score=100.0 * case.score_weight if passed else 0.0,
@@ -134,39 +134,27 @@ def _persist_response(
     static_issues: list[StaticIssue],
     case_results: list[EvaluationCaseResultRead],
 ) -> EvaluationResponse:
-    """把评测结果写入数据库，并组装成接口响应返回。
+    """把评测结果回填到提交记录，并组装成接口响应返回。
 
-    这样做的好处是：
-    - 前端能立刻拿到评测结果
-    - 后端也保留了完整的历史提交记录，方便后续追踪
+    B-2/B-4 会先创建 `submissions` 记录。
+    B-3 只在能按 submission_id 找到记录时回填结果；
+    如果找不到，则保持评测接口可用，只返回本次评测结果。
     """
 
-    record = EvaluationRecord(
-        submission_id=payload.submission_id,
-        question_id=question.id,
-        submitted_code=payload.submitted_code,
-        language=payload.language,
-        overall_score=overall_score,
-        passed_count=passed_count,
-        total_count=total_count,
-        overall_comment=overall_comment,
-        static_issues=[issue.model_dump() for issue in static_issues],
-    )
-    for case in case_results:
-        record.case_results.append(
-            EvaluationCaseResult(
-                case_id=case.case_id,
-                description=case.description,
-                passed=case.passed,
-                score=case.score,
-                actual_output=case.actual_output,
-                expected_output=case.expected_output,
-                error=case.error,
-                execution_time_ms=case.execution_time_ms,
-            )
-        )
-    db.add(record)
-    db.commit()
+    submission = db.get(Submission, payload.submission_id)
+    if submission is not None:
+        submission.question_id = question.id
+        submission.code = payload.submitted_code
+        submission.language = payload.language
+        submission.status = "COMPLETED"
+        submission.overall_score = overall_score
+        submission.passed_count = passed_count
+        submission.total_count = total_count
+        submission.overall_comment = overall_comment
+        submission.static_issues = [issue.model_dump() for issue in static_issues]
+        submission.case_results = [case.model_dump() for case in case_results]
+        db.add(submission)
+        db.commit()
     return EvaluationResponse(
         question_id=question.id,
         submission_id=payload.submission_id,

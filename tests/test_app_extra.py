@@ -1,4 +1,5 @@
 import os
+from datetime import UTC, datetime, timedelta
 
 # 在导入应用之前，先强制把数据库切换成内存数据库。
 # 这样测试不会污染本地真实数据库，测试进程结束后数据也会自动消失。
@@ -8,9 +9,11 @@ os.environ["SANDBOX_BACKEND"] = "local"
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import inspect
 
-from app.db import Base, engine
+from app.db import Base, SessionLocal, engine
 from app.main import app
+from app.models import Assignment, Class, ClassStudent, Course, Submission, User
 
 
 Base.metadata.create_all(bind=engine)
@@ -45,7 +48,121 @@ def test_question_list_detail_and_cases() -> None:
     assert cases_response.status_code == 200
     cases = cases_response.json()
     assert len(cases) >= 1
+    assert cases[0]["case_id"] == "case_01"
     assert cases[0]["case_no"] == 1
+
+
+def test_design_tables_and_class_students_primary_key_exist() -> None:
+    """验证文档要求的核心业务表已经进入 ORM 元数据。"""
+
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+
+    assert {
+        "users",
+        "students",
+        "teachers",
+        "courses",
+        "classes",
+        "class_students",
+        "assignments",
+        "submissions",
+    }.issubset(table_names)
+    assert set(inspector.get_pk_constraint("class_students")["constrained_columns"]) == {"class_id", "student_user_id"}
+
+
+def test_submission_result_updates_existing_submission() -> None:
+    """验证 B-3 只回填已存在的 submissions 记录。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    submission_id = "existing-submission-update"
+
+    with SessionLocal() as db:
+        student = User(
+            username="student_existing_submission",
+            password_hash="hash",
+            email="student_existing_submission@example.com",
+            real_name="测试学生",
+            role="student",
+        )
+        teacher = User(
+            username="teacher_existing_submission",
+            password_hash="hash",
+            email="teacher_existing_submission@example.com",
+            real_name="测试教师",
+            role="teacher",
+        )
+        db.add_all([student, teacher])
+        db.commit()
+        db.refresh(student)
+        db.refresh(teacher)
+
+        course = Course(course_code="CS102-T1", course_name="Python 程序设计", teacher_id=teacher.user_id, semester="2025-2026-2")
+        db.add(course)
+        db.commit()
+        db.refresh(course)
+
+        class_ = Class(course_id=course.course_id, class_name="软件工程2班", class_code="01", teacher_id=teacher.user_id)
+        db.add(class_)
+        db.commit()
+        db.refresh(class_)
+
+        db.add(ClassStudent(class_id=class_.class_id, student_user_id=student.user_id))
+        assignment = Assignment(
+            title="SSH 登录题作业",
+            class_id=class_.class_id,
+            teacher_id=teacher.user_id,
+            due_date=datetime.now(UTC) + timedelta(days=1),
+            question_id="Q02",
+        )
+        db.add(assignment)
+        db.commit()
+        db.refresh(assignment)
+
+        db.add(
+            Submission(
+                submission_id=submission_id,
+                student_user_id=student.user_id,
+                question_id="Q02",
+                assignment_id=assignment.assignment_id,
+                code="",
+                language="shell",
+                status="PENDING",
+            )
+        )
+        db.commit()
+
+    response = client.post(
+        "/api/v1/b3/evaluate",
+        json={"question_id": "Q02", "submitted_code": "ssh user01@127.0.0.1\nexit", "submission_id": submission_id, "language": "shell"},
+    )
+    assert response.status_code == 200
+
+    with SessionLocal() as db:
+        submission = db.get(Submission, submission_id)
+        assert submission is not None
+        assert submission.status == "COMPLETED"
+        assert submission.overall_score == 100.0
+        assert submission.passed_count == 1
+        assert submission.total_count == 1
+        assert submission.code == "ssh user01@127.0.0.1\nexit"
+        assert submission.case_results is not None
+        assert submission.case_results[0]["case_id"] == "case_01"
+
+
+def test_evaluate_without_submission_does_not_create_partial_submission() -> None:
+    """验证找不到 submission_id 时，B-3 不创建缺少学生和作业信息的记录。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    submission_id = "missing-submission-no-create"
+    response = client.post(
+        "/api/v1/b3/evaluate",
+        json={"question_id": "Q02", "submitted_code": "ssh user01@127.0.0.1\nexit", "submission_id": submission_id, "language": "shell"},
+    )
+
+    assert response.status_code == 200
+    with SessionLocal() as db:
+        assert db.get(Submission, submission_id) is None
 
 
 def test_import_uses_problem_txt_description() -> None:

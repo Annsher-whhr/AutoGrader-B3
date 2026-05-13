@@ -65,6 +65,7 @@ def import_seed_questions(db: Session) -> list[Question]:
         for case in payload["cases"]:
             question.test_cases.append(
                 TestCase(
+                    case_id=case.get("case_id", f"case_{case['case_no']:02d}"),
                     case_no=case["case_no"],
                     description=case["description"],
                     input_data=case.get("input_data"),
