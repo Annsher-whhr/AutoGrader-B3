@@ -1,0 +1,1606 @@
+{
+  "local_tables": [
+    "alembic_version",
+    "evaluation_case_results",
+    "evaluation_records",
+    "questions",
+    "test_cases"
+  ],
+  "remote_tables": [
+    "announcements",
+    "assignments",
+    "class_students",
+    "classes",
+    "courses",
+    "questions",
+    "students",
+    "submissions",
+    "system_config",
+    "system_logs",
+    "teachers",
+    "test_cases",
+    "users"
+  ],
+  "local_schema": {
+    "alembic_version": {
+      "columns": [
+        {
+          "Field": "version_num",
+          "Type": "varchar(32)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        }
+      ],
+      "row_count": 1,
+      "create_sql": "CREATE TABLE `alembic_version` (\n  `version_num` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,\n  PRIMARY KEY (`version_num`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "evaluation_case_results": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment",
+          "Comment": ""
+        },
+        {
+          "Field": "evaluation_id",
+          "Type": "int",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "case_id",
+          "Type": "varchar(64)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "description",
+          "Type": "varchar(255)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "passed",
+          "Type": "tinyint(1)",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "score",
+          "Type": "float",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "actual_output",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "expected_output",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "error",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "execution_time_ms",
+          "Type": "float",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        }
+      ],
+      "row_count": 12,
+      "create_sql": "CREATE TABLE `evaluation_case_results` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `evaluation_id` int NOT NULL,\n  `case_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `description` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `passed` tinyint(1) NOT NULL,\n  `score` float NOT NULL,\n  `actual_output` text COLLATE utf8mb4_unicode_ci,\n  `expected_output` text COLLATE utf8mb4_unicode_ci,\n  `error` text COLLATE utf8mb4_unicode_ci,\n  `execution_time_ms` float NOT NULL,\n  PRIMARY KEY (`id`),\n  KEY `evaluation_id` (`evaluation_id`),\n  CONSTRAINT `evaluation_case_results_ibfk_1` FOREIGN KEY (`evaluation_id`) REFERENCES `evaluation_records` (`id`)\n) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "evaluation_records": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment",
+          "Comment": ""
+        },
+        {
+          "Field": "submission_id",
+          "Type": "varchar(64)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "question_id",
+          "Type": "varchar(32)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "submitted_code",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "language",
+          "Type": "varchar(16)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "overall_score",
+          "Type": "float",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "passed_count",
+          "Type": "int",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "total_count",
+          "Type": "int",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "overall_comment",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "static_issues",
+          "Type": "json",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "status",
+          "Type": "varchar(16)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        }
+      ],
+      "row_count": 11,
+      "create_sql": "CREATE TABLE `evaluation_records` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `submission_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `question_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `submitted_code` text COLLATE utf8mb4_unicode_ci NOT NULL,\n  `language` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `overall_score` float NOT NULL,\n  `passed_count` int NOT NULL,\n  `total_count` int NOT NULL,\n  `overall_comment` text COLLATE utf8mb4_unicode_ci NOT NULL,\n  `static_issues` json NOT NULL,\n  `status` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `created_at` datetime NOT NULL,\n  PRIMARY KEY (`id`),\n  KEY `question_id` (`question_id`),\n  KEY `ix_evaluation_records_submission_id` (`submission_id`),\n  CONSTRAINT `evaluation_records_ibfk_1` FOREIGN KEY (`question_id`) REFERENCES `questions` (`id`)\n) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "questions": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "varchar(32)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "title",
+          "Type": "varchar(255)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "description",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "question_type",
+          "Type": "varchar(32)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "difficulty",
+          "Type": "varchar(16)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "language",
+          "Type": "varchar(16)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "time_limit_ms",
+          "Type": "int",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "memory_limit_mb",
+          "Type": "int",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "allowed_commands",
+          "Type": "json",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "metadata_json",
+          "Type": "json",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "status",
+          "Type": "varchar(16)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "updated_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        }
+      ],
+      "row_count": 10,
+      "create_sql": "CREATE TABLE `questions` (\n  `id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `description` text COLLATE utf8mb4_unicode_ci NOT NULL,\n  `question_type` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `difficulty` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `language` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `time_limit_ms` int NOT NULL,\n  `memory_limit_mb` int NOT NULL,\n  `allowed_commands` json NOT NULL,\n  `metadata_json` json NOT NULL,\n  `status` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `created_at` datetime NOT NULL,\n  `updated_at` datetime NOT NULL,\n  PRIMARY KEY (`id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "test_cases": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment",
+          "Comment": ""
+        },
+        {
+          "Field": "question_id",
+          "Type": "varchar(32)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "case_no",
+          "Type": "int",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "description",
+          "Type": "varchar(255)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "input_data",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "expected_output",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "score_weight",
+          "Type": "float",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "input_files_json",
+          "Type": "json",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "expected_files_json",
+          "Type": "json",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "call_args_json",
+          "Type": "json",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "is_hidden",
+          "Type": "tinyint(1)",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        }
+      ],
+      "row_count": 11,
+      "create_sql": "CREATE TABLE `test_cases` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `question_id` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `case_no` int NOT NULL,\n  `description` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `input_data` text COLLATE utf8mb4_unicode_ci,\n  `expected_output` text COLLATE utf8mb4_unicode_ci,\n  `score_weight` float NOT NULL,\n  `input_files_json` json DEFAULT NULL,\n  `expected_files_json` json DEFAULT NULL,\n  `call_args_json` json DEFAULT NULL,\n  `is_hidden` tinyint(1) NOT NULL,\n  PRIMARY KEY (`id`),\n  KEY `ix_test_cases_question_id` (`question_id`),\n  CONSTRAINT `test_cases_ibfk_1` FOREIGN KEY (`question_id`) REFERENCES `questions` (`id`)\n) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    }
+  },
+  "remote_schema": {
+    "announcements": {
+      "columns": [
+        {
+          "Field": "announcement_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment",
+          "Comment": ""
+        },
+        {
+          "Field": "course_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "title",
+          "Type": "varchar(200)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "content",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "created_by",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": "now()",
+          "Extra": "DEFAULT_GENERATED",
+          "Comment": ""
+        }
+      ],
+      "row_count": 39,
+      "create_sql": "CREATE TABLE `announcements` (\n  `announcement_id` bigint NOT NULL AUTO_INCREMENT,\n  `course_id` bigint DEFAULT NULL,\n  `title` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `content` text COLLATE utf8mb4_unicode_ci NOT NULL,\n  `created_by` bigint DEFAULT NULL,\n  `created_at` datetime DEFAULT (now()),\n  PRIMARY KEY (`announcement_id`),\n  KEY `created_by` (`created_by`),\n  KEY `ix_announcements_course_id` (`course_id`),\n  KEY `ix_announcements_announcement_id` (`announcement_id`),\n  CONSTRAINT `announcements_ibfk_1` FOREIGN KEY (`course_id`) REFERENCES `courses` (`course_id`) ON DELETE CASCADE,\n  CONSTRAINT `announcements_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL\n) ENGINE=InnoDB AUTO_INCREMENT=66 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "assignments": {
+      "columns": [
+        {
+          "Field": "assignment_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment",
+          "Comment": ""
+        },
+        {
+          "Field": "title",
+          "Type": "varchar(200)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "description",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "class_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "teacher_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "due_date",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "is_published",
+          "Type": "tinyint(1)",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "allow_resubmit",
+          "Type": "tinyint(1)",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": "now()",
+          "Extra": "DEFAULT_GENERATED",
+          "Comment": ""
+        },
+        {
+          "Field": "published_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "question_id",
+          "Type": "varchar(50)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        }
+      ],
+      "row_count": 0,
+      "create_sql": "CREATE TABLE `assignments` (\n  `assignment_id` bigint NOT NULL AUTO_INCREMENT,\n  `title` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `description` text COLLATE utf8mb4_unicode_ci,\n  `class_id` bigint NOT NULL,\n  `teacher_id` bigint NOT NULL,\n  `due_date` datetime NOT NULL,\n  `is_published` tinyint(1) DEFAULT NULL,\n  `allow_resubmit` tinyint(1) DEFAULT NULL,\n  `created_at` datetime DEFAULT (now()),\n  `published_at` datetime DEFAULT NULL,\n  `question_id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,\n  PRIMARY KEY (`assignment_id`),\n  KEY `ix_assignments_assignment_id` (`assignment_id`),\n  KEY `ix_assignments_class_id` (`class_id`),\n  KEY `ix_assignments_teacher_id` (`teacher_id`),\n  CONSTRAINT `assignments_ibfk_1` FOREIGN KEY (`class_id`) REFERENCES `classes` (`class_id`) ON DELETE CASCADE,\n  CONSTRAINT `assignments_ibfk_2` FOREIGN KEY (`teacher_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=209 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "class_students": {
+      "columns": [
+        {
+          "Field": "class_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "student_user_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "joined_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": "now()",
+          "Extra": "DEFAULT_GENERATED",
+          "Comment": ""
+        }
+      ],
+      "row_count": 0,
+      "create_sql": "CREATE TABLE `class_students` (\n  `class_id` bigint NOT NULL,\n  `student_user_id` bigint NOT NULL,\n  `joined_at` datetime DEFAULT (now()),\n  PRIMARY KEY (`class_id`,`student_user_id`),\n  KEY `ix_class_students_student_user_id` (`student_user_id`),\n  CONSTRAINT `class_students_ibfk_1` FOREIGN KEY (`class_id`) REFERENCES `classes` (`class_id`) ON DELETE CASCADE,\n  CONSTRAINT `class_students_ibfk_2` FOREIGN KEY (`student_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "classes": {
+      "columns": [
+        {
+          "Field": "class_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment",
+          "Comment": ""
+        },
+        {
+          "Field": "course_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "class_name",
+          "Type": "varchar(100)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "class_code",
+          "Type": "varchar(20)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "teacher_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": "now()",
+          "Extra": "DEFAULT_GENERATED",
+          "Comment": ""
+        }
+      ],
+      "row_count": 0,
+      "create_sql": "CREATE TABLE `classes` (\n  `class_id` bigint NOT NULL AUTO_INCREMENT,\n  `course_id` bigint NOT NULL,\n  `class_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `class_code` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `teacher_id` bigint NOT NULL,\n  `created_at` datetime DEFAULT (now()),\n  PRIMARY KEY (`class_id`),\n  UNIQUE KEY `uniq_class` (`course_id`,`class_code`),\n  KEY `ix_classes_teacher_id` (`teacher_id`),\n  KEY `ix_classes_class_id` (`class_id`),\n  KEY `ix_classes_course_id` (`course_id`),\n  CONSTRAINT `classes_ibfk_1` FOREIGN KEY (`course_id`) REFERENCES `courses` (`course_id`) ON DELETE CASCADE,\n  CONSTRAINT `classes_ibfk_2` FOREIGN KEY (`teacher_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=182 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "courses": {
+      "columns": [
+        {
+          "Field": "course_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment",
+          "Comment": ""
+        },
+        {
+          "Field": "course_code",
+          "Type": "varchar(50)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "course_name",
+          "Type": "varchar(100)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "teacher_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "semester",
+          "Type": "varchar(50)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "description",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": "now()",
+          "Extra": "DEFAULT_GENERATED",
+          "Comment": ""
+        }
+      ],
+      "row_count": 0,
+      "create_sql": "CREATE TABLE `courses` (\n  `course_id` bigint NOT NULL AUTO_INCREMENT,\n  `course_code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `course_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `teacher_id` bigint NOT NULL,\n  `semester` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `description` text COLLATE utf8mb4_unicode_ci,\n  `created_at` datetime DEFAULT (now()),\n  PRIMARY KEY (`course_id`),\n  UNIQUE KEY `uniq_course` (`course_code`,`semester`),\n  KEY `ix_courses_teacher_id` (`teacher_id`),\n  KEY `ix_courses_course_id` (`course_id`),\n  CONSTRAINT `courses_ibfk_1` FOREIGN KEY (`teacher_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=181 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "questions": {
+      "columns": [
+        {
+          "Field": "question_id",
+          "Type": "varchar(50)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "title",
+          "Type": "varchar(200)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "description",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "type",
+          "Type": "enum('COMMAND_LINE','FILE_IO','INTERFACE')",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "difficulty",
+          "Type": "enum('EASY','MEDIUM','HARD')",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "language",
+          "Type": "varchar(20)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "time_limit",
+          "Type": "int",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "memory_limit",
+          "Type": "int",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "starter_code",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "solution_code",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "is_active",
+          "Type": "tinyint(1)",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": "now()",
+          "Extra": "DEFAULT_GENERATED",
+          "Comment": ""
+        },
+        {
+          "Field": "created_by",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        }
+      ],
+      "row_count": 10,
+      "create_sql": "CREATE TABLE `questions` (\n  `question_id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `title` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `description` text COLLATE utf8mb4_unicode_ci,\n  `type` enum('COMMAND_LINE','FILE_IO','INTERFACE') COLLATE utf8mb4_unicode_ci NOT NULL,\n  `difficulty` enum('EASY','MEDIUM','HARD') COLLATE utf8mb4_unicode_ci NOT NULL,\n  `language` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `time_limit` int DEFAULT NULL,\n  `memory_limit` int DEFAULT NULL,\n  `starter_code` text COLLATE utf8mb4_unicode_ci,\n  `solution_code` text COLLATE utf8mb4_unicode_ci,\n  `is_active` tinyint(1) DEFAULT NULL,\n  `created_at` datetime DEFAULT (now()),\n  `created_by` bigint DEFAULT NULL,\n  PRIMARY KEY (`question_id`),\n  KEY `created_by` (`created_by`),\n  KEY `ix_questions_language` (`language`),\n  KEY `ix_questions_type` (`type`),\n  KEY `ix_questions_difficulty` (`difficulty`),\n  CONSTRAINT `questions_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "students": {
+      "columns": [
+        {
+          "Field": "user_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "student_id",
+          "Type": "varchar(50)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "UNI",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "first_password_changed",
+          "Type": "tinyint(1)",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        }
+      ],
+      "row_count": 1,
+      "create_sql": "CREATE TABLE `students` (\n  `user_id` bigint NOT NULL,\n  `student_id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `first_password_changed` tinyint(1) DEFAULT NULL,\n  PRIMARY KEY (`user_id`),\n  UNIQUE KEY `ix_students_student_id` (`student_id`),\n  CONSTRAINT `students_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "submissions": {
+      "columns": [
+        {
+          "Field": "submission_id",
+          "Type": "varchar(64)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "student_user_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "question_id",
+          "Type": "varchar(50)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "assignment_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "code",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "language",
+          "Type": "varchar(20)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "submitted_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": "now()",
+          "Extra": "DEFAULT_GENERATED",
+          "Comment": ""
+        },
+        {
+          "Field": "status",
+          "Type": "enum('PENDING','RUNNING','COMPLETED','ERROR')",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "overall_score",
+          "Type": "float",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "passed_count",
+          "Type": "int",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "total_count",
+          "Type": "int",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "overall_comment",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "static_issues",
+          "Type": "json",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "case_results",
+          "Type": "json",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "teacher_score_override",
+          "Type": "float",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "override_reason",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        }
+      ],
+      "row_count": 0,
+      "create_sql": "CREATE TABLE `submissions` (\n  `submission_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `student_user_id` bigint NOT NULL,\n  `question_id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `assignment_id` bigint NOT NULL,\n  `code` text COLLATE utf8mb4_unicode_ci NOT NULL,\n  `language` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `submitted_at` datetime DEFAULT (now()),\n  `status` enum('PENDING','RUNNING','COMPLETED','ERROR') COLLATE utf8mb4_unicode_ci NOT NULL,\n  `overall_score` float DEFAULT NULL,\n  `passed_count` int DEFAULT NULL,\n  `total_count` int DEFAULT NULL,\n  `overall_comment` text COLLATE utf8mb4_unicode_ci,\n  `static_issues` json DEFAULT NULL,\n  `case_results` json DEFAULT NULL,\n  `teacher_score_override` float DEFAULT NULL,\n  `override_reason` text COLLATE utf8mb4_unicode_ci,\n  PRIMARY KEY (`submission_id`),\n  KEY `ix_submissions_student_user_id` (`student_user_id`),\n  KEY `ix_submissions_question_id` (`question_id`),\n  KEY `ix_submissions_status` (`status`),\n  KEY `ix_submissions_assignment_id` (`assignment_id`),\n  CONSTRAINT `submissions_ibfk_1` FOREIGN KEY (`student_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,\n  CONSTRAINT `submissions_ibfk_2` FOREIGN KEY (`assignment_id`) REFERENCES `assignments` (`assignment_id`) ON DELETE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "system_config": {
+      "columns": [
+        {
+          "Field": "config_key",
+          "Type": "varchar(100)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "config_value",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "config_type",
+          "Type": "varchar(20)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "description",
+          "Type": "varchar(500)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        }
+      ],
+      "row_count": 0,
+      "create_sql": "CREATE TABLE `system_config` (\n  `config_key` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `config_value` text COLLATE utf8mb4_unicode_ci NOT NULL,\n  `config_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `description` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  PRIMARY KEY (`config_key`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "system_logs": {
+      "columns": [
+        {
+          "Field": "log_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment",
+          "Comment": ""
+        },
+        {
+          "Field": "user_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "action",
+          "Type": "varchar(50)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "target_type",
+          "Type": "varchar(50)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "target_id",
+          "Type": "varchar(100)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "details",
+          "Type": "json",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "ip_address",
+          "Type": "varchar(50)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "level",
+          "Type": "varchar(20)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "message",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "source",
+          "Type": "varchar(100)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": "now()",
+          "Extra": "DEFAULT_GENERATED",
+          "Comment": ""
+        }
+      ],
+      "row_count": 0,
+      "create_sql": "CREATE TABLE `system_logs` (\n  `log_id` bigint NOT NULL AUTO_INCREMENT,\n  `user_id` bigint DEFAULT NULL,\n  `action` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `target_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `target_id` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `details` json DEFAULT NULL,\n  `ip_address` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `level` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `message` text COLLATE utf8mb4_unicode_ci NOT NULL,\n  `source` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `created_at` datetime DEFAULT (now()),\n  PRIMARY KEY (`log_id`),\n  KEY `user_id` (`user_id`),\n  KEY `ix_system_logs_log_id` (`log_id`),\n  CONSTRAINT `system_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "teachers": {
+      "columns": [
+        {
+          "Field": "user_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "teacher_id",
+          "Type": "varchar(50)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "UNI",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "department",
+          "Type": "varchar(100)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        }
+      ],
+      "row_count": 1,
+      "create_sql": "CREATE TABLE `teachers` (\n  `user_id` bigint NOT NULL,\n  `teacher_id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `department` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  PRIMARY KEY (`user_id`),\n  UNIQUE KEY `teacher_id` (`teacher_id`),\n  CONSTRAINT `teachers_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "test_cases": {
+      "columns": [
+        {
+          "Field": "test_case_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment",
+          "Comment": ""
+        },
+        {
+          "Field": "question_id",
+          "Type": "varchar(50)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "input",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "expected_output",
+          "Type": "text",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "is_public",
+          "Type": "tinyint(1)",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "score_weight",
+          "Type": "float",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        }
+      ],
+      "row_count": 0,
+      "create_sql": "CREATE TABLE `test_cases` (\n  `test_case_id` bigint NOT NULL AUTO_INCREMENT,\n  `question_id` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `input` text COLLATE utf8mb4_unicode_ci,\n  `expected_output` text COLLATE utf8mb4_unicode_ci NOT NULL,\n  `is_public` tinyint(1) DEFAULT NULL,\n  `score_weight` float DEFAULT NULL,\n  PRIMARY KEY (`test_case_id`),\n  KEY `ix_test_cases_test_case_id` (`test_case_id`),\n  KEY `ix_test_cases_question_id` (`question_id`),\n  CONSTRAINT `test_cases_ibfk_1` FOREIGN KEY (`question_id`) REFERENCES `questions` (`question_id`) ON DELETE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=97 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "users": {
+      "columns": [
+        {
+          "Field": "user_id",
+          "Type": "bigint",
+          "Collation": null,
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment",
+          "Comment": ""
+        },
+        {
+          "Field": "username",
+          "Type": "varchar(20)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "UNI",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "password_hash",
+          "Type": "varchar(255)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "email",
+          "Type": "varchar(100)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "UNI",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "phone",
+          "Type": "varchar(20)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "real_name",
+          "Type": "varchar(50)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "role",
+          "Type": "enum('student','teacher','admin')",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "avatar_url",
+          "Type": "varchar(255)",
+          "Collation": "utf8mb4_unicode_ci",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "is_active",
+          "Type": "tinyint(1)",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": "now()",
+          "Extra": "DEFAULT_GENERATED",
+          "Comment": ""
+        },
+        {
+          "Field": "last_login_at",
+          "Type": "datetime",
+          "Collation": null,
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": "",
+          "Comment": ""
+        }
+      ],
+      "row_count": 3,
+      "create_sql": "CREATE TABLE `users` (\n  `user_id` bigint NOT NULL AUTO_INCREMENT,\n  `username` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `email` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `real_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `role` enum('student','teacher','admin') COLLATE utf8mb4_unicode_ci NOT NULL,\n  `avatar_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `is_active` tinyint(1) DEFAULT NULL,\n  `created_at` datetime DEFAULT (now()),\n  `last_login_at` datetime DEFAULT NULL,\n  PRIMARY KEY (`user_id`),\n  UNIQUE KEY `ix_users_username` (`username`),\n  UNIQUE KEY `ix_users_email` (`email`),\n  KEY `ix_users_role` (`role`),\n  KEY `ix_users_user_id` (`user_id`)\n) ENGINE=InnoDB AUTO_INCREMENT=665 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    }
+  }
+}

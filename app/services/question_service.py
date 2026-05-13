@@ -8,13 +8,28 @@ from app.problem_parser import parse_problem_sections
 from app.seed_data import API_DEMO_QUESTION, build_seeded_questions
 
 
+def _build_test_case(case: dict) -> TestCase:
+    return TestCase(
+        case_id=case.get("case_id", f"case_{case['case_no']:02d}"),
+        case_no=case["case_no"],
+        description=case["description"],
+        input_data=case.get("input_data"),
+        expected_output=case.get("expected_output") or "",
+        score_weight=case.get("score_weight", 1.0),
+        input_files_json=case.get("input_files_json"),
+        expected_files_json=case.get("expected_files_json"),
+        call_args_json=case.get("call_args_json"),
+        is_hidden=case.get("is_hidden", False),
+    )
+
+
 def list_questions(db: Session) -> list[Question]:
     """查询全部题目，并按题号排序返回。
 
     这样前端每次看到的列表顺序都会比较稳定。
     """
 
-    stmt = select(Question).order_by(Question.id)
+    stmt = select(Question).order_by(Question.question_id)
     return list(db.scalars(stmt))
 
 
@@ -25,7 +40,7 @@ def get_question(db: Session, question_id: str) -> Question | None:
     避免后面访问 `question.test_cases` 时再额外触发数据库查询。
     """
 
-    stmt = select(Question).where(Question.id == question_id).options(selectinload(Question.test_cases))
+    stmt = select(Question).where(Question.question_id == question_id).options(selectinload(Question.test_cases))
     return db.scalar(stmt)
 
 
@@ -40,7 +55,7 @@ def import_seed_questions(db: Session) -> list[Question]:
     """
 
     imported: list[Question] = []
-    existing_ids = set(db.scalars(select(Question.id)).all())
+    existing_ids = set(db.scalars(select(Question.question_id)).all())
     problem_txt_path = Path(__file__).resolve().parents[2] / "problem.txt"
     problem_sections = parse_problem_sections(problem_txt_path)
     parsed_questions = build_seeded_questions(problem_sections)
@@ -48,6 +63,11 @@ def import_seed_questions(db: Session) -> list[Question]:
         if payload["id"] in existing_ids:
             existing = db.get(Question, payload["id"])
             if existing is not None:
+                existing_case_numbers = {case.case_no for case in existing.test_cases}
+                for case in payload["cases"]:
+                    if case["case_no"] not in existing_case_numbers:
+                        existing.test_cases.append(_build_test_case(case))
+                db.add(existing)
                 imported.append(existing)
             continue
         # 这里把 `seed_data.py` 里用字典描述的题目，
@@ -63,20 +83,7 @@ def import_seed_questions(db: Session) -> list[Question]:
             metadata_json=payload["metadata_json"],
         )
         for case in payload["cases"]:
-            question.test_cases.append(
-                TestCase(
-                    case_id=case.get("case_id", f"case_{case['case_no']:02d}"),
-                    case_no=case["case_no"],
-                    description=case["description"],
-                    input_data=case.get("input_data"),
-                    expected_output=case.get("expected_output"),
-                    score_weight=case.get("score_weight", 1.0),
-                    input_files_json=case.get("input_files_json"),
-                    expected_files_json=case.get("expected_files_json"),
-                    call_args_json=case.get("call_args_json"),
-                    is_hidden=case.get("is_hidden", False),
-                )
-            )
+            question.test_cases.append(_build_test_case(case))
         db.add(question)
         imported.append(question)
         existing_ids.add(payload["id"])
