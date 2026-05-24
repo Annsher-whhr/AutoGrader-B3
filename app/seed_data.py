@@ -12,6 +12,31 @@
 """
 
 
+EXTERNAL_QUESTION_BLUEPRINTS = [
+    {
+        "id": "Q01",
+        "title": "邮件发送作业",
+        "description": "向 linuxos_assignment@163.com 发送一封电子邮件，邮件主题为学号_第几次作业。",
+        "question_type": "command",
+        "difficulty": "EASY",
+        "allowed_commands": ["echo", "mail"],
+        "metadata_json": {
+            "mail_recipient": "linuxos_assignment@163.com",
+            "mail_subject": "20250001_第1次作业",
+            "mail_body": "作业提交内容\n",
+        },
+        "cases": [
+            {
+                "case_no": 1,
+                "description": "通过管道向指定邮箱发送作业内容",
+                "expected_output": 'echo "作业提交内容" | mail -s "20250001_第1次作业" linuxos_assignment@163.com',
+                "score_weight": 1.0,
+            }
+        ],
+    },
+]
+
+
 QUESTION_BLUEPRINTS = [
     {
         "id": "Q02",

@@ -4,7 +4,8 @@ import shlex
 from app.schemas import StaticIssue
 
 
-DANGEROUS_TOKENS = {"rm", "sudo", "shutdown", "reboot", "mkfs", "curl", "wget", "nc", "netcat", "powershell", "cmd.exe"}
+ALWAYS_DANGEROUS_TOKENS = {"rm", "sudo", "shutdown", "reboot", "mkfs", "powershell", "cmd.exe"}
+RESTRICTED_TOKENS = {"curl", "wget", "nc", "netcat", "mail"}
 FORBIDDEN_CHARS = ["&&", "||", ">", ">>", "<", "`", "${", "|&"]
 
 
@@ -58,6 +59,32 @@ def _contains_command_substitution(text: str) -> bool:
     return False
 
 
+def _split_unquoted_pipe(text: str) -> list[str]:
+    parts: list[str] = []
+    start = 0
+    in_single = False
+    in_double = False
+    escaped = False
+    for index, char in enumerate(text):
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\" and not in_single:
+            escaped = True
+            continue
+        if char == "'" and not in_double:
+            in_single = not in_single
+            continue
+        if char == '"' and not in_single:
+            in_double = not in_double
+            continue
+        if char == "|" and not in_single and not in_double:
+            parts.append(text[start:index].strip())
+            start = index + 1
+    parts.append(text[start:].strip())
+    return [part for part in parts if part]
+
+
 def scan_shell_code(submitted_code: str, allowed_commands: list[str]) -> list[StaticIssue]:
     """对 shell 答案做静态安全检查。
 
@@ -81,25 +108,33 @@ def scan_shell_code(submitted_code: str, allowed_commands: list[str]) -> list[St
     lines = [line.strip() for line in submitted_code.splitlines() if line.strip()]
     if len(lines) > 20:
         issues.append(StaticIssue(code="TOO_MANY_LINES", message="too many command lines for this question"))
+    allowed = set(allowed_commands)
     for line in lines:
-        try:
-            parts = shlex.split(line)
-        except ValueError:
-            issues.append(StaticIssue(code="PARSE_ERROR", message=f"unable to parse command: {line}"))
+        command_segments = _split_unquoted_pipe(line)
+        if not command_segments:
             continue
-        if not parts:
+        if len(command_segments) > 1 and not allowed:
+            issues.append(StaticIssue(code="COMMAND_NOT_ALLOWED", message="pipeline commands require an explicit allowed command list"))
             continue
-        command = parts[0]
-        if command in DANGEROUS_TOKENS:
-            issues.append(StaticIssue(code="DANGEROUS_COMMAND", message=f"dangerous command detected: {command}"))
-        if allowed_commands and command not in allowed_commands:
-            issues.append(StaticIssue(code="COMMAND_NOT_ALLOWED", message=f"command is not allowed for this question: {command}"))
+        for segment in command_segments:
+            try:
+                parts = shlex.split(segment)
+            except ValueError:
+                issues.append(StaticIssue(code="PARSE_ERROR", message=f"unable to parse command: {segment}"))
+                continue
+            if not parts:
+                continue
+            command = parts[0]
+            if command in ALWAYS_DANGEROUS_TOKENS or (command in RESTRICTED_TOKENS and command not in allowed):
+                issues.append(StaticIssue(code="DANGEROUS_COMMAND", message=f"dangerous command detected: {command}"))
+            if allowed and command not in allowed:
+                issues.append(StaticIssue(code="COMMAND_NOT_ALLOWED", message=f"command is not allowed for this question: {command}"))
         if re.search(r"\.\.[\\/]", line):
             issues.append(StaticIssue(code="PATH_ESCAPE", message="path traversal detected"))
     return issues
 
 
-def scan_script_code(submitted_code: str) -> list[StaticIssue]:
+def scan_script_code(submitted_code: str, expected_outputs: list[str] | None = None) -> list[StaticIssue]:
     """对脚本题做静态检查。
 
     先复用 shell 检查规则，
@@ -109,10 +144,15 @@ def scan_script_code(submitted_code: str) -> list[StaticIssue]:
 
     issues = [issue for issue in scan_shell_code(submitted_code, []) if issue.code != "TOO_MANY_LINES"]
     lowered = submitted_code.lower()
-    expected = "4,6,8,9,10,12,14,15,16,18,20,21,22,24,25,26,27,28,30,32,33,34,35,36,38,39,40,42,44,45,46,48,49,50,51,52,54,55,56,57,58,60,62,63,64,65,66,68,69,70,72,74,75,76,77,78,80,81,82,84,85,86,87,88,90,91,92,93,94,95,96,98,99,100"
     if "while true" in lowered or "while :" in lowered:
         issues.append(StaticIssue(code="POSSIBLE_INFINITE_LOOP", message="possible infinite loop detected"))
-    # 对 Q10 这类脚本题，直接把最终结果硬编码出来不算通过。
-    if expected in submitted_code and ("for " not in lowered and "while " not in lowered):
-        issues.append(StaticIssue(code="HARDCODED_EXPECTED_OUTPUT", message="hardcoded expected output detected"))
+    # 对脚本题，直接把任一测试点最终结果硬编码出来不算通过。
+    # 期望输出由题目/测试用例传入，避免把某一道题的答案写死在通用扫描器里。
+    normalized_submission = submitted_code.replace("\r\n", "\n")
+    has_loop_or_condition = any(keyword in lowered for keyword in ("for ", "while ", "until ", "if "))
+    for expected in expected_outputs or []:
+        normalized_expected = expected.rstrip("\n")
+        if normalized_expected and normalized_expected in normalized_submission and not has_loop_or_condition:
+            issues.append(StaticIssue(code="HARDCODED_EXPECTED_OUTPUT", message="hardcoded expected output detected"))
+            break
     return issues

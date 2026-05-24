@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.judge.api_runner import run_api_case
@@ -16,6 +17,8 @@ def evaluate_submission(db: Session, question: Question, payload: EvaluateReques
     - 其他题走 shell / script 判题逻辑
     """
 
+    if not question.test_cases:
+        raise HTTPException(status_code=422, detail=f"Question {question.id} has no test cases configured")
     if question.question_type == "api":
         return _evaluate_api(db, question, payload)
     return _evaluate_shell(db, question, payload)
@@ -29,7 +32,11 @@ def _evaluate_shell(db: Session, question: Question, payload: EvaluateRequest) -
     2. 再根据题目 ID 找到专门的判题函数进行校验
     """
 
-    static_issues = scan_script_code(payload.submitted_code) if question.question_type == "script" else scan_shell_code(payload.submitted_code, question.allowed_commands)
+    static_issues = (
+        scan_script_code(payload.submitted_code, _expected_outputs_for_static_scan(question))
+        if question.question_type == "script"
+        else scan_shell_code(payload.submitted_code, question.allowed_commands)
+    )
     if static_issues:
         case_results = []
         for case in question.test_cases:
@@ -82,6 +89,14 @@ def _evaluate_shell(db: Session, question: Question, payload: EvaluateRequest) -
     overall_score = round((obtained / total_weight) * 100, 2) if total_weight else 0.0
     comment = "答案通过。" if passed_count == len(question.test_cases) else f"通过 {passed_count}/{len(question.test_cases)} 个测试用例。"
     return _persist_response(db, question, payload, overall_score, passed_count, len(question.test_cases), comment, [], case_results)
+
+
+def _expected_outputs_for_static_scan(question: Question) -> list[str]:
+    outputs = [case.expected_output for case in question.test_cases if case.expected_output]
+    metadata_expected = (question.metadata_json or {}).get("expected_output")
+    if metadata_expected:
+        outputs.append(metadata_expected)
+    return outputs
 
 
 def _evaluate_api(db: Session, question: Question, payload: EvaluateRequest) -> EvaluationResponse:

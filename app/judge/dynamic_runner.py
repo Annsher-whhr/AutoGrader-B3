@@ -129,6 +129,20 @@ def _prepare_command_workspace(workspace: Path, question: Question, case: TestCa
                 """
             ),
         )
+    elif question.id == "Q01":
+        # 联调库里的 Q01 是发邮件命令题。判题环境不能真的发信，
+        # 这里 mock mail，只记录参数和管道输入用于后续校验。
+        _write_executable(
+            bin_dir / "mail",
+            dedent(
+                """\
+                #!/usr/bin/env bash
+                printf '%s\n' "$*" > "$WORKSPACE_ROOT/mail_args.log"
+                cat > "$WORKSPACE_ROOT/mail_stdin.log"
+                exit 0
+                """
+            ),
+        )
     elif question.id == "Q03":
         # 这些系统命令在不同机器上的输出不稳定，
         # 用 mock 固定住结果后，判题才能保持一致。
@@ -287,6 +301,25 @@ def _verify_shell_case(
             error = "ssh 目标或用户不正确。"
         elif not has_expected_exit:
             error = "登录成功后需要执行 exit 退出登录。"
+        else:
+            error = None
+        return DynamicRunResult(passed, actual, expected, error, run_result.execution_time_ms)
+
+    if question.id == "Q01":
+        mail_args = (workspace / "mail_args.log").read_text(encoding="utf-8").strip() if (workspace / "mail_args.log").exists() else ""
+        mail_body = (workspace / "mail_stdin.log").read_text(encoding="utf-8") if (workspace / "mail_stdin.log").exists() else ""
+        expected_subject = metadata.get("mail_subject", "20250001_第1次作业")
+        expected_recipient = metadata.get("mail_recipient", "linuxos_assignment@163.com")
+        expected_body = metadata.get("mail_body", "作业提交内容\n")
+        passed = mail_args == f"-s {expected_subject} {expected_recipient}" and mail_body == expected_body
+        actual = json.dumps({"mail_args": mail_args, "mail_body": mail_body}, ensure_ascii=False)
+        expected = json.dumps({"mail_args": f"-s {expected_subject} {expected_recipient}", "mail_body": expected_body}, ensure_ascii=False)
+        if not mail_args:
+            error = "没有调用 mail 命令。"
+        elif mail_args != f"-s {expected_subject} {expected_recipient}":
+            error = "邮件主题或收件人不正确。"
+        elif mail_body != expected_body:
+            error = "邮件正文内容不正确。"
         else:
             error = None
         return DynamicRunResult(passed, actual, expected, error, run_result.execution_time_ms)

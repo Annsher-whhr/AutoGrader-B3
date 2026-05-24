@@ -13,7 +13,7 @@ from sqlalchemy import inspect
 
 from app.db import Base, SessionLocal, engine
 from app.main import app
-from app.models import Assignment, Class, ClassStudent, Course, Submission, User
+from app.models import Assignment, Class, ClassStudent, Course, Question, Submission, User
 
 
 Base.metadata.create_all(bind=engine)
@@ -50,6 +50,15 @@ def test_question_list_detail_and_cases() -> None:
     assert len(cases) >= 1
     assert cases[0]["case_id"] == "case_01"
     assert cases[0]["case_no"] == 1
+
+
+def test_unprefixed_api_v1_routes_remain_compatible() -> None:
+    """验证联调方可以不带 /b3 前缀访问主要接口。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.get("/api/v1/questions/Q02")
+    assert response.status_code == 200
+    assert response.json()["id"] == "Q02"
 
 
 def test_design_tables_and_class_students_primary_key_exist() -> None:
@@ -206,6 +215,57 @@ def test_missing_question_endpoints_return_404() -> None:
     assert evaluate_response.status_code == 404
 
 
+def test_unknown_question_blueprint_has_safe_defaults() -> None:
+    """验证外部库题目即使没有 B3 蓝图，也能安全序列化。"""
+
+    question_id = "Q_EXTERNAL_DEFAULTS"
+    with SessionLocal() as db:
+        if db.get(Question, question_id) is None:
+            db.add(
+                Question(
+                    id=question_id,
+                    title="外部题目",
+                    description="来自其他模块的题目",
+                    question_type="command",
+                    difficulty="EASY",
+                    language="shell",
+                )
+            )
+            db.commit()
+
+    response = client.get(f"/api/v1/b3/questions/{question_id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["allowed_commands"] == []
+    assert data["metadata_json"] == {}
+
+
+def test_evaluate_question_without_cases_returns_clear_error() -> None:
+    """验证题目无测试用例时不再返回 0/0 的模糊评测结果。"""
+
+    question_id = "Q_EMPTY_CASES"
+    with SessionLocal() as db:
+        if db.get(Question, question_id) is None:
+            db.add(
+                Question(
+                    id=question_id,
+                    title="无测试点题目",
+                    description="用于验证空测试点行为",
+                    question_type="command",
+                    difficulty="EASY",
+                    language="shell",
+                )
+            )
+            db.commit()
+
+    response = client.post(
+        "/api/v1/b3/evaluate",
+        json={"question_id": question_id, "submitted_code": "echo ok", "submission_id": "empty-cases", "language": "shell"},
+    )
+    assert response.status_code == 422
+    assert "no test cases" in response.json()["detail"]
+
+
 def test_q02_disallowed_command_rejected_by_static_scan() -> None:
     """验证命令题会拦截不在白名单中的命令。"""
 
@@ -299,7 +359,7 @@ def test_api_demo_timeout_isolated_from_main_process() -> None:
     assert "超时" in (data["case_results"][0]["error"] or "")
 
 
-@pytest.mark.parametrize("question_id", ["Q02", "Q03", "Q04", "Q05", "Q06", "Q07", "Q08", "Q09", "Q10"])
+@pytest.mark.parametrize("question_id", ["Q01", "Q02", "Q03", "Q04", "Q05", "Q06", "Q07", "Q08", "Q09", "Q10"])
 def test_reference_answers_cover_dynamic_runner(question_id: str) -> None:
     """验证 shell/file/script 题已经改成可执行式评测。"""
 

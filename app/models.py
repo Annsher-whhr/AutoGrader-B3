@@ -17,13 +17,13 @@ def utc_now() -> datetime:
 
 def _question_blueprint(question_id: str | None) -> dict[str, Any]:
     if not question_id:
-        return {}
-    from app.seed_data import API_DEMO_QUESTION, QUESTION_BLUEPRINTS
+        return {"allowed_commands": [], "metadata_json": {}, "cases": []}
+    from app.seed_data import API_DEMO_QUESTION, EXTERNAL_QUESTION_BLUEPRINTS, QUESTION_BLUEPRINTS
 
-    for blueprint in [*QUESTION_BLUEPRINTS, API_DEMO_QUESTION]:
+    for blueprint in [*EXTERNAL_QUESTION_BLUEPRINTS, *QUESTION_BLUEPRINTS, API_DEMO_QUESTION]:
         if blueprint["id"] == question_id:
             return blueprint
-    return {}
+    return {"allowed_commands": [], "metadata_json": {}, "cases": []}
 
 
 def _case_blueprint(question_id: str | None, case_no: int) -> dict[str, Any]:

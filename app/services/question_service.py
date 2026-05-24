@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models import Question, TestCase
 from app.problem_parser import parse_problem_sections
-from app.seed_data import API_DEMO_QUESTION, build_seeded_questions
+from app.seed_data import API_DEMO_QUESTION, EXTERNAL_QUESTION_BLUEPRINTS, build_seeded_questions
 
 
 def _build_test_case(case: dict) -> TestCase:
@@ -59,7 +59,7 @@ def import_seed_questions(db: Session) -> list[Question]:
     problem_txt_path = Path(__file__).resolve().parents[2] / "problem.txt"
     problem_sections = parse_problem_sections(problem_txt_path)
     parsed_questions = build_seeded_questions(problem_sections)
-    for payload in parsed_questions + [API_DEMO_QUESTION]:
+    for payload in [*EXTERNAL_QUESTION_BLUEPRINTS, *parsed_questions, API_DEMO_QUESTION]:
         if payload["id"] in existing_ids:
             existing = db.get(Question, payload["id"])
             if existing is not None:

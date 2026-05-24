@@ -20,6 +20,7 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/api/v1/questions", response_model=list[QuestionRead], include_in_schema=False)
 @app.get("/api/v1/b3/questions", response_model=list[QuestionRead])
 def read_questions(db: Session = Depends(get_db)) -> list[QuestionRead]:
     """返回当前数据库里的全部题目。"""
@@ -27,6 +28,7 @@ def read_questions(db: Session = Depends(get_db)) -> list[QuestionRead]:
     return list_questions(db)
 
 
+@app.get("/api/v1/questions/{question_id}", response_model=QuestionDetail, include_in_schema=False)
 @app.get("/api/v1/b3/questions/{question_id}", response_model=QuestionDetail)
 def read_question(question_id: str, db: Session = Depends(get_db)) -> QuestionDetail:
     """返回单道题的详细信息。
@@ -40,6 +42,7 @@ def read_question(question_id: str, db: Session = Depends(get_db)) -> QuestionDe
     return question
 
 
+@app.put("/api/v1/questions/{question_id}", response_model=QuestionRead, include_in_schema=False)
 @app.put("/api/v1/b3/questions/{question_id}", response_model=QuestionRead)
 def update_question(question_id: str, payload: QuestionUpdate, db: Session = Depends(get_db)) -> QuestionRead:
     """更新题目。
@@ -59,6 +62,7 @@ def update_question(question_id: str, payload: QuestionUpdate, db: Session = Dep
     return question
 
 
+@app.get("/api/v1/questions/{question_id}/cases", response_model=list[TestCaseRead], include_in_schema=False)
 @app.get("/api/v1/b3/questions/{question_id}/cases", response_model=list[TestCaseRead])
 def read_question_cases(question_id: str, db: Session = Depends(get_db)) -> list[TestCaseRead]:
     """返回某道题的全部测试用例。"""
@@ -69,6 +73,7 @@ def read_question_cases(question_id: str, db: Session = Depends(get_db)) -> list
     return question.test_cases
 
 
+@app.post("/api/v1/questions/import/problem-txt", response_model=list[QuestionRead], include_in_schema=False)
 @app.post("/api/v1/b3/questions/import/problem-txt", response_model=list[QuestionRead])
 def import_problem_txt(db: Session = Depends(get_db)) -> list[QuestionRead]:
     """把内置示例题导入数据库。"""
@@ -76,6 +81,7 @@ def import_problem_txt(db: Session = Depends(get_db)) -> list[QuestionRead]:
     return import_seed_questions(db)
 
 
+@app.post("/api/v1/evaluate", response_model=EvaluationResponse, include_in_schema=False)
 @app.post("/api/v1/b3/evaluate", response_model=EvaluationResponse)
 def evaluate(payload: EvaluateRequest, db: Session = Depends(get_db)) -> EvaluationResponse:
     """评测用户提交的答案。"""
@@ -86,6 +92,7 @@ def evaluate(payload: EvaluateRequest, db: Session = Depends(get_db)) -> Evaluat
     return evaluate_submission(db, question, payload)
 
 
+@app.post("/api/v1/evaluate/answer/{question_id}", response_model=EvaluationResponse, include_in_schema=False)
 @app.post("/api/v1/b3/evaluate/answer/{question_id}", response_model=EvaluationResponse)
 def evaluate_reference_answer(question_id: str, db: Session = Depends(get_db)) -> EvaluationResponse:
     """评测系统内置的参考答案。
@@ -99,6 +106,7 @@ def evaluate_reference_answer(question_id: str, db: Session = Depends(get_db)) -
         raise HTTPException(status_code=404, detail="Question not found")
     reference_answers = {
         # 这里放的是每道题的参考答案，主要用于快速验证判题流程是否正常。
+        "Q01": 'echo "作业提交内容" | mail -s "20250001_第1次作业" linuxos_assignment@163.com',
         "Q02": "ssh user01@127.0.0.1\nexit",
         "Q03": "who -b\nuname -r\ndate '+%Y|%m|%d_%H:%M'\ncal 10 1949\ncat week5_5.txt",
         "Q04": "cd week5_6\npwd\ncd ..\npwd\ncat week5_10_1.txt week5_10_2.txt week5_10_3.txt",
@@ -110,6 +118,8 @@ def evaluate_reference_answer(question_id: str, db: Session = Depends(get_db)) -
         "Q10": "first=1\nfor i in {2..100}\ndo\n  c=0\n  for j in {2..99}\n  do\n    if [ $j -lt $i ]\n    then\n      r=$((i%j))\n      if [ $r -eq 0 ]\n      then\n        c=1\n      fi\n    fi\n  done\n  if [ $c -eq 1 ]\n  then\n    if [ $first -eq 1 ]\n    then\n      printf '%s' \"$i\"\n      first=0\n    else\n      printf ',%s' \"$i\"\n    fi\n  fi\ndone\nprintf '\\n'\n",
         "API_DEMO": "def add(a, b):\n    return a + b\n",
     }
+    if question_id not in reference_answers:
+        raise HTTPException(status_code=404, detail="Reference answer not found")
     payload = EvaluateRequest(question_id=question_id, submitted_code=reference_answers[question_id], submission_id=f"answer-{question_id}", language=question.language)
     return evaluate_submission(db, question, payload)
 # 测试git
