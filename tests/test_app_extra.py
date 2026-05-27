@@ -199,6 +199,53 @@ def test_question_update() -> None:
     assert data["difficulty"] == "HARD"
 
 
+def test_create_question_keeps_runtime_judge_fields() -> None:
+    """验证 JSON 创建题目后，判题字段和用例描述能被 B3 读取。"""
+
+    question_id = "Q_RUNTIME_CREATE"
+    response = client.post(
+        "/api/v1/b3/questions",
+        json={
+            "id": question_id,
+            "title": "动态 echo 题",
+            "description": "输出 hello",
+            "question_type": "command",
+            "difficulty": "EASY",
+            "allowed_commands": ["echo"],
+            "metadata_json": {"source": "api"},
+            "test_cases": [
+                {
+                    "case_no": 1,
+                    "description": "输出 hello",
+                    "expected_output": "hello\n",
+                    "score_weight": 1.0,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 201
+    created = response.json()
+    assert created["allowed_commands"] == ["echo"]
+    assert created["metadata_json"] == {"source": "api"}
+    assert created["test_cases"][0]["description"] == "输出 hello"
+
+    detail_response = client.get(f"/api/v1/b3/questions/{question_id}")
+    assert detail_response.status_code == 200
+    detail = detail_response.json()
+    assert detail["allowed_commands"] == ["echo"]
+    assert detail["metadata_json"] == {"source": "api"}
+    assert detail["test_cases"][0]["description"] == "输出 hello"
+
+    evaluate_response = client.post(
+        "/api/v1/b3/evaluate",
+        json={"question_id": question_id, "submitted_code": "echo hello", "submission_id": "runtime-create", "language": "shell"},
+    )
+    assert evaluate_response.status_code == 200
+    result = evaluate_response.json()
+    assert result["overall_score"] == 100.0
+    assert result["case_results"][0]["description"] == "输出 hello"
+
+
 def test_missing_question_endpoints_return_404() -> None:
     """验证查询或评测不存在的题目时会返回 404。"""
 

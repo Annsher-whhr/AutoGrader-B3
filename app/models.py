@@ -7,6 +7,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 BIGINT = BigInteger().with_variant(Integer, "sqlite")
+_EMPTY_BLUEPRINT = {"allowed_commands": [], "metadata_json": {}, "cases": []}
+_RUNTIME_BLUEPRINTS: dict[str, dict[str, Any]] = {}
+_RUNTIME_CASES: dict[tuple[str, int], dict[str, Any]] = {}
 
 
 def utc_now() -> datetime:
@@ -15,22 +18,53 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+def register_question_blueprint(question_id: str, blueprint: dict[str, Any]) -> None:
+    """注册运行时创建或更新的判题专用字段。"""
+
+    cases = list(blueprint.get("cases", []))
+    stored = dict(blueprint)
+    stored["id"] = question_id
+    stored["cases"] = cases
+    _RUNTIME_BLUEPRINTS[question_id] = stored
+    for index, case in enumerate(cases, start=1):
+        case_payload = dict(case)
+        case_no = int(case_payload.get("case_no") or index)
+        case_payload["case_no"] = case_no
+        _RUNTIME_CASES[(question_id, case_no)] = case_payload
+
+
 def _question_blueprint(question_id: str | None) -> dict[str, Any]:
     if not question_id:
-        return {"allowed_commands": [], "metadata_json": {}, "cases": []}
+        return dict(_EMPTY_BLUEPRINT)
     from app.seed_data import API_DEMO_QUESTION, EXTERNAL_QUESTION_BLUEPRINTS, QUESTION_BLUEPRINTS
 
+    seeded = None
     for blueprint in [*EXTERNAL_QUESTION_BLUEPRINTS, *QUESTION_BLUEPRINTS, API_DEMO_QUESTION]:
         if blueprint["id"] == question_id:
-            return blueprint
-    return {"allowed_commands": [], "metadata_json": {}, "cases": []}
+            seeded = blueprint
+            break
+    runtime = _RUNTIME_BLUEPRINTS.get(question_id)
+    if runtime is None:
+        return seeded or dict(_EMPTY_BLUEPRINT)
+    merged = dict(seeded or _EMPTY_BLUEPRINT)
+    merged.update(runtime)
+    if "cases" not in runtime and seeded is not None:
+        merged["cases"] = seeded.get("cases", [])
+    return merged
 
 
 def _case_blueprint(question_id: str | None, case_no: int) -> dict[str, Any]:
+    seeded_case = {}
     for case in _question_blueprint(question_id).get("cases", []):
         if case.get("case_no") == case_no:
-            return case
-    return {}
+            seeded_case = case
+            break
+    if question_id is None:
+        return seeded_case
+    runtime_case = _RUNTIME_CASES.get((question_id, case_no))
+    if runtime_case is None:
+        return seeded_case
+    return {**seeded_case, **runtime_case}
 
 
 class Question(Base):

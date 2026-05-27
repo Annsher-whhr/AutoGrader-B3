@@ -2,9 +2,9 @@ from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.schemas import EvaluateRequest, EvaluationResponse, QuestionDetail, QuestionRead, QuestionUpdate, TestCaseRead
+from app.schemas import EvaluateRequest, EvaluationResponse, QuestionCreate, QuestionDetail, QuestionRead, QuestionUpdate, TestCaseRead
 from app.services.evaluation_service import evaluate_submission
-from app.services.question_service import get_question, import_seed_questions, list_questions
+from app.services.question_service import create_question, get_question, import_seed_questions, list_questions, register_question_runtime_fields
 
 
 app = FastAPI(title="AutoGrader B3", version="1.0.0")
@@ -26,6 +26,17 @@ def read_questions(db: Session = Depends(get_db)) -> list[QuestionRead]:
     """返回当前数据库里的全部题目。"""
 
     return list_questions(db)
+
+
+@app.post("/api/v1/questions", response_model=QuestionDetail, status_code=201, include_in_schema=False)
+@app.post("/api/v1/b3/questions", response_model=QuestionDetail, status_code=201)
+def create_b3_question(payload: QuestionCreate, db: Session = Depends(get_db)) -> QuestionDetail:
+    """通过 JSON 请求体创建单道 B3 判题题目。"""
+
+    try:
+        return create_question(db, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.get("/api/v1/questions/{question_id}", response_model=QuestionDetail, include_in_schema=False)
@@ -54,11 +65,13 @@ def update_question(question_id: str, payload: QuestionUpdate, db: Session = Dep
     question = get_question(db, question_id)
     if question is None:
         raise HTTPException(status_code=404, detail="Question not found")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    fields = payload.model_dump(exclude_unset=True)
+    for key, value in fields.items():
         setattr(question, key, value)
     db.add(question)
     db.commit()
     db.refresh(question)
+    register_question_runtime_fields(question, fields)
     return question
 
 

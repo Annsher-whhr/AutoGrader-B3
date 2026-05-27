@@ -3,8 +3,9 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Question, TestCase
+from app.models import Question, TestCase, register_question_blueprint
 from app.problem_parser import parse_problem_sections
+from app.schemas import QuestionCreate
 from app.seed_data import API_DEMO_QUESTION, EXTERNAL_QUESTION_BLUEPRINTS, build_seeded_questions
 
 
@@ -21,6 +22,30 @@ def _build_test_case(case: dict) -> TestCase:
         call_args_json=case.get("call_args_json"),
         is_hidden=case.get("is_hidden", False),
     )
+
+
+def _question_payload_for_runtime(question: Question, cases: list[dict] | None = None) -> dict:
+    return {
+        "id": question.id,
+        "title": question.title,
+        "description": question.description,
+        "question_type": question.question_type,
+        "difficulty": question.difficulty,
+        "allowed_commands": getattr(question, "_allowed_commands_hint", question.allowed_commands),
+        "metadata_json": getattr(question, "_metadata_json_hint", question.metadata_json),
+        "cases": cases or [],
+    }
+
+
+def _case_payloads_for_create(payload: QuestionCreate) -> list[dict]:
+    cases: list[dict] = []
+    for index, case in enumerate(payload.test_cases, start=1):
+        case_payload = case.model_dump()
+        case_payload["case_no"] = case_payload.get("case_no") or index
+        case_payload["case_id"] = case_payload.get("case_id") or f"case_{case_payload['case_no']:02d}"
+        case_payload["description"] = case_payload.get("description") or case_payload["case_id"]
+        cases.append(case_payload)
+    return cases
 
 
 def list_questions(db: Session) -> list[Question]:
@@ -42,6 +67,64 @@ def get_question(db: Session, question_id: str) -> Question | None:
 
     stmt = select(Question).where(Question.question_id == question_id).options(selectinload(Question.test_cases))
     return db.scalar(stmt)
+
+
+def create_question(db: Session, payload: QuestionCreate) -> Question:
+    """根据 JSON 请求体创建一道动态 B3 题目。"""
+
+    if db.get(Question, payload.id) is not None:
+        raise ValueError(f"Question {payload.id} already exists")
+
+    language = payload.language or ("python" if payload.question_type == "api" else "shell")
+    question = Question(
+        id=payload.id,
+        title=payload.title,
+        description=payload.description,
+        question_type=payload.question_type,
+        difficulty=payload.difficulty,
+        language=language,
+        time_limit_ms=payload.time_limit_ms,
+        memory_limit_mb=payload.memory_limit_mb,
+        allowed_commands=payload.allowed_commands,
+        metadata_json=payload.metadata_json,
+        status=payload.status,
+    )
+    cases = _case_payloads_for_create(payload)
+    for case in cases:
+        question.test_cases.append(_build_test_case(case))
+
+    db.add(question)
+    db.commit()
+    db.refresh(question)
+    register_question_blueprint(question.id, _question_payload_for_runtime(question, cases))
+    return question
+
+
+def register_question_runtime_fields(question: Question, fields: dict) -> None:
+    """让 API 更新过的判题专用字段继续可读。"""
+
+    runtime_cases = []
+    for case in question.test_cases:
+        runtime_cases.append(
+            {
+                "case_no": case.case_no,
+                "case_id": case.case_id,
+                "description": case.description,
+                "input_data": case.input_data,
+                "expected_output": case.expected_output,
+                "score_weight": case.score_weight,
+                "input_files_json": case.input_files_json,
+                "expected_files_json": case.expected_files_json,
+                "call_args_json": case.call_args_json,
+                "is_hidden": case.is_hidden,
+            }
+        )
+    blueprint = _question_payload_for_runtime(question, runtime_cases)
+    if "allowed_commands" in fields:
+        blueprint["allowed_commands"] = fields["allowed_commands"]
+    if "metadata_json" in fields:
+        blueprint["metadata_json"] = fields["metadata_json"]
+    register_question_blueprint(question.id, blueprint)
 
 
 def import_seed_questions(db: Session) -> list[Question]:

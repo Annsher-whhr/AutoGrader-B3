@@ -1,6 +1,38 @@
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
+
+
+class TestCaseCreate(BaseModel):
+    """创建题目时提交的测试用例结构。"""
+
+    case_id: str | None = None
+    case_no: int | None = None
+    description: str
+    input_data: str | None = None
+    expected_output: str | None = None
+    score_weight: float = 1.0
+    input_files_json: dict[str, str] | None = None
+    expected_files_json: dict[str, str] | None = None
+    call_args_json: Any = None
+    is_hidden: bool = False
+
+
+class QuestionCreate(BaseModel):
+    """创建单道 B3 判题题目的请求体。"""
+
+    id: str = Field(validation_alias=AliasChoices("id", "question_id"))
+    title: str
+    description: str
+    question_type: str = "command"
+    difficulty: str = "EASY"
+    language: str | None = None
+    time_limit_ms: int = 2000
+    memory_limit_mb: int = 64
+    allowed_commands: list[str] = Field(default_factory=list)
+    metadata_json: dict[str, Any] = Field(default_factory=dict)
+    status: str = "ACTIVE"
+    test_cases: list[TestCaseCreate] = Field(default_factory=list, validation_alias=AliasChoices("test_cases", "cases"))
 
 
 class TestCaseRead(BaseModel):
