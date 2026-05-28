@@ -1,5 +1,4 @@
 .venv/
-.env
 .codex
 node_modules/
 __pycache__/
