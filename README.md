@@ -10,6 +10,7 @@
 当前版本已经具备以下核心能力：
 
 - 题库导入、题目查询、题目更新、测试用例查询
+- 面向 B2 静态检查的题目规则查询接口
 - `problem.txt` 题面解析与结构化题库配置合并
 - shell / script 提交的静态安全检查
 - `command`、`file`、`script`、`api` 四类题目的统一评测入口
@@ -19,12 +20,12 @@
 
 当前覆盖的题目包括：
 
-- `Q02` 到 `Q10`
+- `Q01` 到 `Q10`
 - `API_DEMO`
 
 其中：
 
-- `Q02-Q04` 主要体现命令题 / 基础文件环境题
+- `Q01-Q04` 主要体现命令题 / 基础文件环境题
 - `Q05-Q09` 体现文件题和文本处理题
 - `Q10` 为 shell 脚本题
 - `API_DEMO` 用于演示 Python 接口调用型判题流程
@@ -266,6 +267,12 @@ curl -X POST http://127.0.0.1:8003/api/v1/b3/questions/import/problem-txt
 curl http://127.0.0.1:8003/api/v1/b3/questions
 ```
 
+查看题目静态检查规则：
+
+```bash
+curl http://127.0.0.1:8003/api/v1/b3/rules/API_DEMO
+```
+
 执行参考答案自测：
 
 ```bash
@@ -283,10 +290,30 @@ curl -X POST http://127.0.0.1:8003/api/v1/b3/evaluate/answer/API_DEMO
 - `GET /api/v1/b3/questions`
 - `GET /api/v1/b3/questions/{question_id}`
 - `GET /api/v1/b3/questions/{question_id}/cases`
+- `GET /api/v1/b3/rules/{question_id}`
 - `PUT /api/v1/b3/questions/{question_id}`
 - `POST /api/v1/b3/questions/import/problem-txt`
 - `POST /api/v1/b3/evaluate`
 - `POST /api/v1/b3/evaluate/answer/{question_id}`
+
+### 规则接口返回示例
+
+`GET /api/v1/b3/rules/{question_id}` 用于给 B2 静态检查模块提供题目规则。
+
+```json
+{
+  "question_id": "API_DEMO",
+  "question_type": "api",
+  "language": "python",
+  "allowed_commands": [],
+  "forbidden_modules": ["ctypes", "os", "pathlib", "shutil", "socket", "subprocess", "sys"],
+  "forbidden_functions": ["__import__", "compile", "eval", "exec", "open"],
+  "metadata_json": {
+    "entry_function": "add",
+    "python_command": "python3"
+  }
+}
+```
 
 ### 评测请求示例
 
@@ -318,13 +345,13 @@ curl -X POST http://127.0.0.1:8003/api/v1/b3/evaluate/answer/API_DEMO
 
 项目当前使用 `pytest` 做自动化测试，`pytest.ini` 中已经关闭缓存目录提供器，避免生成多余缓存目录。
 
-如果尚未激活虚拟环境，先执行：
+先激活虚拟环境（如果尚未激活虚拟环境）：
 
 ```bash
 source .venv/bin/activate
 ```
 
-之后启动服务：
+之后启动服务（如果尚未启动服务）：
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8003
