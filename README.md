@@ -324,6 +324,12 @@ curl -X POST http://127.0.0.1:8003/api/v1/b3/evaluate/answer/API_DEMO
 source .venv/bin/activate
 ```
 
+之后启动服务：
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8003
+```
+
 直接运行：
 
 ```bash

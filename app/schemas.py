@@ -81,6 +81,18 @@ class QuestionDetail(QuestionRead):
     test_cases: list[TestCaseRead]
 
 
+class QuestionRules(BaseModel):
+    """提供给 B2 静态检查模块使用的题目规则。"""
+
+    question_id: str
+    question_type: str
+    language: str
+    allowed_commands: list[str]
+    forbidden_modules: list[str]
+    forbidden_functions: list[str]
+    metadata_json: dict[str, Any]
+
+
 class QuestionUpdate(BaseModel):
     """题目更新接口的请求体。
 

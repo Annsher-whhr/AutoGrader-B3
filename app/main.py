@@ -2,9 +2,9 @@ from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.schemas import EvaluateRequest, EvaluationResponse, QuestionCreate, QuestionDetail, QuestionRead, QuestionUpdate, TestCaseRead
+from app.schemas import EvaluateRequest, EvaluationResponse, QuestionCreate, QuestionDetail, QuestionRead, QuestionRules, QuestionUpdate, TestCaseRead
 from app.services.evaluation_service import evaluate_submission
-from app.services.question_service import create_question, get_question, import_seed_questions, list_questions, register_question_runtime_fields
+from app.services.question_service import create_question, get_question, get_question_rules, import_seed_questions, list_questions, register_question_runtime_fields
 
 
 app = FastAPI(title="AutoGrader B3", version="1.0.0")
@@ -51,6 +51,17 @@ def read_question(question_id: str, db: Session = Depends(get_db)) -> QuestionDe
     if question is None:
         raise HTTPException(status_code=404, detail="Question not found")
     return question
+
+
+@app.get("/api/v1/rules/{question_id}", response_model=QuestionRules, include_in_schema=False)
+@app.get("/api/v1/b3/rules/{question_id}", response_model=QuestionRules)
+def read_question_rules(question_id: str, db: Session = Depends(get_db)) -> QuestionRules:
+    """返回 B2 静态检查需要的题目规则。"""
+
+    question = get_question(db, question_id)
+    if question is None:
+        raise HTTPException(status_code=404, detail="Question not found")
+    return get_question_rules(question)
 
 
 @app.put("/api/v1/questions/{question_id}", response_model=QuestionRead, include_in_schema=False)

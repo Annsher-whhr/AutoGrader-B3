@@ -52,6 +52,35 @@ def test_question_list_detail_and_cases() -> None:
     assert cases[0]["case_no"] == 1
 
 
+def test_question_rules_endpoint_for_python_api_question() -> None:
+    """验证 B3 提供 B2 静态检查需要的 Python 规则。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.get("/api/v1/b3/rules/API_DEMO")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["question_id"] == "API_DEMO"
+    assert data["question_type"] == "api"
+    assert data["language"] == "python"
+    assert "os" in data["forbidden_modules"]
+    assert "subprocess" in data["forbidden_modules"]
+    assert "eval" in data["forbidden_functions"]
+    assert "exec" in data["forbidden_functions"]
+
+
+def test_question_rules_endpoint_for_shell_question() -> None:
+    """验证 rules 接口会返回 shell 题的命令白名单。"""
+
+    client.post("/api/v1/b3/questions/import/problem-txt")
+    response = client.get("/api/v1/b3/rules/Q01")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["question_id"] == "Q01"
+    assert data["question_type"] == "command"
+    assert data["language"] == "shell"
+    assert data["allowed_commands"] == ["echo", "mail"]
+
+
 def test_unprefixed_api_v1_routes_remain_compatible() -> None:
     """验证联调方可以不带 /b3 前缀访问主要接口。"""
 
@@ -59,6 +88,10 @@ def test_unprefixed_api_v1_routes_remain_compatible() -> None:
     response = client.get("/api/v1/questions/Q02")
     assert response.status_code == 200
     assert response.json()["id"] == "Q02"
+
+    rules_response = client.get("/api/v1/rules/API_DEMO")
+    assert rules_response.status_code == 200
+    assert rules_response.json()["question_id"] == "API_DEMO"
 
 
 def test_design_tables_and_class_students_primary_key_exist() -> None:
@@ -254,6 +287,9 @@ def test_missing_question_endpoints_return_404() -> None:
 
     cases_response = client.get("/api/v1/b3/questions/NO_SUCH_QUESTION/cases")
     assert cases_response.status_code == 404
+
+    rules_response = client.get("/api/v1/b3/rules/NO_SUCH_QUESTION")
+    assert rules_response.status_code == 404
 
     evaluate_response = client.post(
         "/api/v1/b3/evaluate",

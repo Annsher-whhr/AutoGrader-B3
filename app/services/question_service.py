@@ -3,9 +3,10 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.judge.api_runner import FORBIDDEN_CALLS, FORBIDDEN_IMPORTS
 from app.models import Question, TestCase, register_question_blueprint
 from app.problem_parser import parse_problem_sections
-from app.schemas import QuestionCreate
+from app.schemas import QuestionCreate, QuestionRules
 from app.seed_data import API_DEMO_QUESTION, EXTERNAL_QUESTION_BLUEPRINTS, build_seeded_questions
 
 
@@ -67,6 +68,23 @@ def get_question(db: Session, question_id: str) -> Question | None:
 
     stmt = select(Question).where(Question.question_id == question_id).options(selectinload(Question.test_cases))
     return db.scalar(stmt)
+
+
+def get_question_rules(question: Question) -> QuestionRules:
+    """组装 B2 静态检查需要的题目规则。"""
+
+    metadata = question.metadata_json or {}
+    forbidden_modules = metadata.get("forbidden_modules", sorted(FORBIDDEN_IMPORTS))
+    forbidden_functions = metadata.get("forbidden_functions", sorted(FORBIDDEN_CALLS))
+    return QuestionRules(
+        question_id=question.id,
+        question_type=question.question_type,
+        language=question.language,
+        allowed_commands=question.allowed_commands,
+        forbidden_modules=list(forbidden_modules),
+        forbidden_functions=list(forbidden_functions),
+        metadata_json=metadata,
+    )
 
 
 def create_question(db: Session, payload: QuestionCreate) -> Question:
