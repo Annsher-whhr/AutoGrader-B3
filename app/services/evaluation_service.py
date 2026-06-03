@@ -8,6 +8,12 @@ from app.models import Question, Submission
 from app.schemas import EvaluateRequest, EvaluationCaseResultRead, EvaluationResponse, StaticIssue
 
 
+def _outputs_match(actual: str | None, expected: str | None) -> bool:
+    actual_normalized = (actual or "").replace("\r\n", "\n")
+    expected_normalized = (expected or "").replace("\r\n", "\n")
+    return actual_normalized == expected_normalized or actual_normalized.rstrip("\n") == expected_normalized.rstrip("\n")
+
+
 def evaluate_submission(db: Session, question: Question, payload: EvaluateRequest) -> EvaluationResponse:
     """评测一次提交。
 
@@ -19,7 +25,7 @@ def evaluate_submission(db: Session, question: Question, payload: EvaluateReques
 
     if not question.test_cases:
         raise HTTPException(status_code=422, detail=f"Question {question.id} has no test cases configured")
-    if question.question_type == "api":
+    if question.question_type == "api" or question.language == "python":
         return _evaluate_api(db, question, payload)
     return _evaluate_shell(db, question, payload)
 
@@ -115,7 +121,7 @@ def _evaluate_api(db: Session, question: Question, payload: EvaluateRequest) -> 
         result = run_api_case(question, case, payload.submitted_code)
         expected = case.expected_output
         # API 题当前采用“函数返回值转成字符串后比较”的方式判断是否通过。
-        passed = result.error is None and result.actual_output == expected
+        passed = result.error is None and _outputs_match(result.actual_output, expected)
         if passed:
             passed_count += 1
             obtained += case.score_weight

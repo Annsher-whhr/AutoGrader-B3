@@ -12,6 +12,19 @@ _RUNTIME_BLUEPRINTS: dict[str, dict[str, Any]] = {}
 _RUNTIME_CASES: dict[tuple[str, int], dict[str, Any]] = {}
 
 
+def normalize_question_type(value: str | None) -> str:
+    normalized = (value or "command").strip().lower()
+    return {
+        "shell": "command",
+        "bash": "command",
+        "cli": "command",
+        "command_line": "command",
+        "file_io": "file",
+        "python": "api",
+        "interface": "api",
+    }.get(normalized, normalized)
+
+
 def utc_now() -> datetime:
     """返回当前 UTC 时间，使用带时区的时间对象。"""
 
@@ -82,6 +95,7 @@ class Question(Base):
     memory_limit: Mapped[int | None] = mapped_column(Integer)
     starter_code: Mapped[str | None] = mapped_column(Text)
     solution_code: Mapped[str | None] = mapped_column(Text)
+    judge_config_json: Mapped[dict[str, Any] | None] = mapped_column("judge_config", JSON)
     is_active: Mapped[bool | None] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.user_id", ondelete="SET NULL"))
@@ -105,7 +119,8 @@ class Question(Base):
 
     @question_type.setter
     def question_type(self, value: str) -> None:
-        self.type = {"api": "INTERFACE", "file": "FILE_IO", "script": "COMMAND_LINE", "command": "COMMAND_LINE"}.get(value, value)
+        normalized = normalize_question_type(value)
+        self.type = {"api": "INTERFACE", "file": "FILE_IO", "script": "COMMAND_LINE", "command": "COMMAND_LINE"}.get(normalized, normalized)
 
     @property
     def time_limit_ms(self) -> int:
@@ -125,19 +140,29 @@ class Question(Base):
 
     @property
     def allowed_commands(self) -> list[str]:
+        if self.judge_config_json and "allowed_commands" in self.judge_config_json:
+            return list(self.judge_config_json.get("allowed_commands") or [])
         return list(_question_blueprint(self.question_id).get("allowed_commands", []))
 
     @allowed_commands.setter
     def allowed_commands(self, value: list[str]) -> None:
         self._allowed_commands_hint = value
+        config = dict(self.judge_config_json or {})
+        config["allowed_commands"] = list(value or [])
+        self.judge_config_json = config
 
     @property
     def metadata_json(self) -> dict[str, Any]:
+        if self.judge_config_json and "metadata_json" in self.judge_config_json:
+            return dict(self.judge_config_json.get("metadata_json") or {})
         return dict(_question_blueprint(self.question_id).get("metadata_json", {}))
 
     @metadata_json.setter
     def metadata_json(self, value: dict[str, Any]) -> None:
         self._metadata_json_hint = value
+        config = dict(self.judge_config_json or {})
+        config["metadata_json"] = dict(value or {})
+        self.judge_config_json = config
 
     @property
     def status(self) -> str:
@@ -155,8 +180,14 @@ class TestCase(Base):
 
     test_case_id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     question_id: Mapped[str] = mapped_column(ForeignKey("questions.question_id", ondelete="CASCADE"), nullable=False, index=True)
+    case_id_value: Mapped[str | None] = mapped_column("case_id", String(50))
+    case_no_value: Mapped[int | None] = mapped_column("case_no", Integer)
+    description_text: Mapped[str | None] = mapped_column("description", Text)
     input: Mapped[str | None] = mapped_column(Text)
     expected_output: Mapped[str] = mapped_column(Text, nullable=False)
+    input_files_json_value: Mapped[dict[str, str] | None] = mapped_column("input_files_json", JSON)
+    expected_files_json_value: Mapped[dict[str, str] | None] = mapped_column("expected_files_json", JSON)
+    call_args_json_value: Mapped[Any] = mapped_column("call_args_json", JSON)
     is_public: Mapped[bool | None] = mapped_column(Boolean, default=True)
     score_weight: Mapped[float] = mapped_column(Float, default=1.0)
 
@@ -172,6 +203,8 @@ class TestCase(Base):
 
     @property
     def case_no(self) -> int:
+        if self.case_no_value is not None:
+            return self.case_no_value
         if hasattr(self, "_case_no_hint"):
             return self._case_no_hint
         if self.question is not None:
@@ -184,22 +217,29 @@ class TestCase(Base):
     @case_no.setter
     def case_no(self, value: int) -> None:
         self._case_no_hint = value
+        self.case_no_value = value
 
     @property
     def case_id(self) -> str:
+        if self.case_id_value:
+            return self.case_id_value
         return f"case_{self.case_no:02d}"
 
     @case_id.setter
     def case_id(self, value: str) -> None:
         self._case_id_hint = value
+        self.case_id_value = value
 
     @property
     def description(self) -> str:
+        if self.description_text:
+            return self.description_text
         return _case_blueprint(self.question_id, self.case_no).get("description", self.case_id)
 
     @description.setter
     def description(self, value: str) -> None:
         self._description_hint = value
+        self.description_text = value
 
     @property
     def input_data(self) -> str | None:
@@ -211,27 +251,36 @@ class TestCase(Base):
 
     @property
     def input_files_json(self) -> dict[str, str] | None:
+        if self.input_files_json_value is not None:
+            return self.input_files_json_value
         return _case_blueprint(self.question_id, self.case_no).get("input_files_json")
 
     @input_files_json.setter
     def input_files_json(self, value: dict[str, str] | None) -> None:
         self._input_files_json_hint = value
+        self.input_files_json_value = value
 
     @property
     def expected_files_json(self) -> dict[str, str] | None:
+        if self.expected_files_json_value is not None:
+            return self.expected_files_json_value
         return _case_blueprint(self.question_id, self.case_no).get("expected_files_json")
 
     @expected_files_json.setter
     def expected_files_json(self, value: dict[str, str] | None) -> None:
         self._expected_files_json_hint = value
+        self.expected_files_json_value = value
 
     @property
     def call_args_json(self) -> Any:
+        if self.call_args_json_value is not None:
+            return self.call_args_json_value
         return _case_blueprint(self.question_id, self.case_no).get("call_args_json")
 
     @call_args_json.setter
     def call_args_json(self, value: Any) -> None:
         self._call_args_json_hint = value
+        self.call_args_json_value = value
 
     @property
     def is_hidden(self) -> bool:

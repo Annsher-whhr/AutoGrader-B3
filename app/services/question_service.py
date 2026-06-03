@@ -3,8 +3,9 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.judge.dynamic_runner import python_judge_mode
 from app.judge.api_runner import FORBIDDEN_CALLS, FORBIDDEN_IMPORTS
-from app.models import Question, TestCase, register_question_blueprint
+from app.models import Question, TestCase, normalize_question_type, register_question_blueprint
 from app.problem_parser import parse_problem_sections
 from app.schemas import QuestionCreate, QuestionRules
 from app.seed_data import API_DEMO_QUESTION, EXTERNAL_QUESTION_BLUEPRINTS, build_seeded_questions
@@ -74,7 +75,11 @@ def get_question_rules(question: Question) -> QuestionRules:
     """组装 B2 静态检查需要的题目规则。"""
 
     metadata = question.metadata_json or {}
-    forbidden_modules = metadata.get("forbidden_modules", sorted(FORBIDDEN_IMPORTS))
+    forbidden_modules = metadata.get("forbidden_modules")
+    if forbidden_modules is None:
+        forbidden_modules = sorted(FORBIDDEN_IMPORTS)
+        if question.language == "python" and python_judge_mode(question) == "stdin":
+            forbidden_modules = [module for module in forbidden_modules if module != "sys"]
     forbidden_functions = metadata.get("forbidden_functions", sorted(FORBIDDEN_CALLS))
     return QuestionRules(
         question_id=question.id,
@@ -93,12 +98,13 @@ def create_question(db: Session, payload: QuestionCreate) -> Question:
     if db.get(Question, payload.id) is not None:
         raise ValueError(f"Question {payload.id} already exists")
 
-    language = payload.language or ("python" if payload.question_type == "api" else "shell")
+    question_type = normalize_question_type(payload.question_type)
+    language = payload.language or ("python" if question_type == "api" else "shell")
     question = Question(
         id=payload.id,
         title=payload.title,
         description=payload.description,
-        question_type=payload.question_type,
+        question_type=question_type,
         difficulty=payload.difficulty,
         language=language,
         time_limit_ms=payload.time_limit_ms,

@@ -41,6 +41,28 @@ def _normalize_output(text: str) -> str:
     return text.replace("\r\n", "\n")
 
 
+def _outputs_match(actual: str | None, expected: str | None) -> bool:
+    actual_normalized = _normalize_output(actual or "")
+    expected_normalized = _normalize_output(expected or "")
+    return actual_normalized == expected_normalized or actual_normalized.rstrip("\n") == expected_normalized.rstrip("\n")
+
+
+def python_judge_mode(question: Question, case: TestCase | None = None) -> str:
+    metadata = question.metadata_json or {}
+    configured = metadata.get("python_mode") or metadata.get("judge_mode")
+    if configured:
+        normalized = str(configured).strip().lower()
+        if normalized in {"stdin", "stdio", "script", "program"}:
+            return "stdin"
+        if normalized in {"function", "api", "call"}:
+            return "function"
+    if metadata.get("entry_function"):
+        return "function"
+    if case is not None and case.call_args_json is not None:
+        return "function"
+    return "stdin"
+
+
 def _collect_expected_files(root: Path, expected_files: dict[str, str] | None) -> list[str]:
     mismatches: list[str] = []
     for relative_path, expected in (expected_files or {}).items():
@@ -326,7 +348,7 @@ def _verify_shell_case(
 
     if question.id == "Q04":
         expected_output = metadata["expected_output_template"].format(root=str(workspace), child=str(workspace / "week5_6"))
-        passed = stdout == expected_output
+        passed = _outputs_match(stdout, expected_output)
         return DynamicRunResult(passed, stdout, expected_output, None if passed else "目录切换或文件合并结果不正确。", run_result.execution_time_ms)
 
     if question.id == "Q05":
@@ -336,7 +358,7 @@ def _verify_shell_case(
             if (workspace / relative_path).exists():
                 mismatches.append(f"unexpected path exists: {relative_path}")
         expected_output = case.expected_output or ""
-        if stdout != expected_output:
+        if not _outputs_match(stdout, expected_output):
             mismatches.append("stdout mismatch")
         error = None if not mismatches else "；".join(mismatches)
         return DynamicRunResult(not mismatches, stdout, expected_output, error, run_result.execution_time_ms)
@@ -359,7 +381,7 @@ def _verify_shell_case(
     expected_output = case.expected_output or ""
     mismatches = _collect_expected_files(workspace, case.expected_files_json)
     mismatches.extend(_collect_readonly_modifications(workspace, readonly_snapshot))
-    if stdout != expected_output:
+    if not _outputs_match(stdout, expected_output):
         mismatches.append("stdout mismatch")
     error = None if not mismatches else "；".join(mismatches)
     actual = stdout if stdout else (stderr or None)
@@ -396,7 +418,14 @@ def run_shell_case(question: Question, case: TestCase, submitted_code: str) -> D
         return _verify_shell_case(question, case, workspace, run_result, submitted_code, readonly_snapshot)
 
 
-def run_python_case(question: Question, case: TestCase, submitted_code: str) -> DynamicRunResult:
+def _python_path_env(sandbox_backend_name: str) -> dict[str, str]:
+    path_value = os.environ.get("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+    if sandbox_backend_name == "docker":
+        path_value = DOCKER_PATH
+    return {"PATH": path_value}
+
+
+def _run_python_function_case(question: Question, case: TestCase, submitted_code: str) -> DynamicRunResult:
     sandbox = get_sandbox()
     with TemporaryDirectory() as tmp:
         workspace = Path(tmp)
@@ -416,7 +445,33 @@ def run_python_case(question: Question, case: TestCase, submitted_code: str) -> 
             from pathlib import Path
 
             payload = json.loads(Path("payload.json").read_text(encoding="utf-8"))
-            namespace = {"__builtins__": {"len": len, "range": range, "sum": sum, "min": min, "max": max, "abs": abs}}
+            safe_builtins = {
+                "abs": abs,
+                "all": all,
+                "any": any,
+                "bool": bool,
+                "dict": dict,
+                "enumerate": enumerate,
+                "filter": filter,
+                "float": float,
+                "int": int,
+                "len": len,
+                "list": list,
+                "map": map,
+                "max": max,
+                "min": min,
+                "pow": pow,
+                "range": range,
+                "reversed": reversed,
+                "round": round,
+                "set": set,
+                "sorted": sorted,
+                "str": str,
+                "sum": sum,
+                "tuple": tuple,
+                "zip": zip,
+            }
+            namespace = {"__builtins__": safe_builtins}
             started = time.perf_counter()
             try:
                 exec(payload["code"], namespace, namespace)
@@ -432,10 +487,7 @@ def run_python_case(question: Question, case: TestCase, submitted_code: str) -> 
             """
         )
         _write_executable(workspace / "runner.py", runner)
-        path_value = f"{workspace / 'bin'}:{os.environ.get('PATH', '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin')}"
-        if sandbox.backend_name == "docker":
-            path_value = DOCKER_PATH
-        env = {"PATH": path_value}
+        env = _python_path_env(sandbox.backend_name)
         python_cmd = question.metadata_json.get("python_command", "python3")
         try:
             run_result = sandbox.run(
@@ -461,7 +513,7 @@ def run_python_case(question: Question, case: TestCase, submitted_code: str) -> 
 
         actual = payload.get("actual_output")
         error = payload.get("error")
-        passed = error is None and actual == case.expected_output
+        passed = error is None and _outputs_match(actual, case.expected_output)
         return DynamicRunResult(
             passed=passed,
             actual_output=actual,
@@ -469,3 +521,51 @@ def run_python_case(question: Question, case: TestCase, submitted_code: str) -> 
             error=error if error is not None else (None if passed else "返回值与预期不一致。"),
             execution_time_ms=float(payload.get("execution_time_ms", run_result.execution_time_ms)),
         )
+
+
+def _run_python_stdin_case(question: Question, case: TestCase, submitted_code: str) -> DynamicRunResult:
+    sandbox = get_sandbox()
+    with TemporaryDirectory() as tmp:
+        workspace = Path(tmp)
+        _write_tree(workspace, case.input_files_json)
+        _apply_path_permissions(workspace, question, case)
+        readonly_snapshot = _snapshot_paths(workspace, question.metadata_json.get("readonly_paths", []))
+        (workspace / "submission.py").write_text(submitted_code.rstrip("\n") + "\n", encoding="utf-8")
+        python_cmd = question.metadata_json.get("python_command", "python3")
+        try:
+            run_result = sandbox.run(
+                workspace,
+                [python_cmd, "submission.py"],
+                stdin=case.input_data or "",
+                env=_python_path_env(sandbox.backend_name),
+                timeout_ms=question.time_limit_ms,
+                memory_limit_mb=max(question.memory_limit_mb, 256),
+            )
+        except SandboxExecutionError as exc:
+            return DynamicRunResult(False, None, case.expected_output, str(exc), 0.0)
+
+        stdout = _normalize_output(run_result.stdout)
+        stderr = _normalize_output(run_result.stderr)
+        if run_result.timed_out:
+            return DynamicRunResult(False, stdout, case.expected_output, "execution timed out", run_result.execution_time_ms)
+        if run_result.exit_code != 0:
+            message = stderr or stdout or f"process exited with code {run_result.exit_code}"
+            return DynamicRunResult(False, stdout or stderr, case.expected_output, message, run_result.execution_time_ms)
+
+        mismatches = _collect_expected_files(workspace, case.expected_files_json)
+        mismatches.extend(_collect_readonly_modifications(workspace, readonly_snapshot))
+        if not _outputs_match(stdout, case.expected_output):
+            mismatches.append("stdout mismatch")
+        return DynamicRunResult(
+            passed=not mismatches,
+            actual_output=stdout,
+            expected_output=case.expected_output,
+            error=None if not mismatches else "; ".join(mismatches),
+            execution_time_ms=run_result.execution_time_ms,
+        )
+
+
+def run_python_case(question: Question, case: TestCase, submitted_code: str) -> DynamicRunResult:
+    if python_judge_mode(question, case) == "function":
+        return _run_python_function_case(question, case, submitted_code)
+    return _run_python_stdin_case(question, case, submitted_code)

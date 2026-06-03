@@ -13,7 +13,7 @@ from sqlalchemy import inspect
 
 from app.db import Base, SessionLocal, engine
 from app.main import app
-from app.models import Assignment, Class, ClassStudent, Course, Question, Submission, User
+from app.models import Assignment, Class, ClassStudent, Course, Question, Submission, User, _RUNTIME_BLUEPRINTS, _RUNTIME_CASES
 
 
 Base.metadata.create_all(bind=engine)
@@ -277,6 +277,87 @@ def test_create_question_keeps_runtime_judge_fields() -> None:
     result = evaluate_response.json()
     assert result["overall_score"] == 100.0
     assert result["case_results"][0]["description"] == "输出 hello"
+
+
+def test_frontend_shell_question_persists_judge_fields_after_runtime_cache_clear() -> None:
+    question_id = "Q_FRONTEND_SHELL"
+    response = client.post(
+        "/api/v1/b3/questions",
+        json={
+            "id": question_id,
+            "title": "frontend shell",
+            "description": "echo hello",
+            "question_type": "shell",
+            "difficulty": "EASY",
+            "allowed_commands": ["echo"],
+            "test_cases": [
+                {
+                    "case_no": 1,
+                    "description": "stdout without trailing newline in expected",
+                    "expected_output": "hello",
+                    "score_weight": 1.0,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 201
+
+    _RUNTIME_BLUEPRINTS.clear()
+    _RUNTIME_CASES.clear()
+
+    detail_response = client.get(f"/api/v1/b3/questions/{question_id}")
+    assert detail_response.status_code == 200
+    detail = detail_response.json()
+    assert detail["allowed_commands"] == ["echo"]
+    assert detail["test_cases"][0]["description"] == "stdout without trailing newline in expected"
+
+    evaluate_response = client.post(
+        "/api/v1/b3/evaluate",
+        json={"question_id": question_id, "submitted_code": "echo hello", "submission_id": "frontend-shell", "language": "shell"},
+    )
+    assert evaluate_response.status_code == 200
+    result = evaluate_response.json()
+    assert result["overall_score"] == 100.0
+    assert result["passed_count"] == 1
+
+
+def test_frontend_python_stdin_question_scores_correct_answer() -> None:
+    question_id = "Q_FRONTEND_PYTHON"
+    response = client.post(
+        "/api/v1/b3/questions",
+        json={
+            "id": question_id,
+            "title": "frontend python",
+            "description": "read two integers and print sum",
+            "question_type": "python",
+            "difficulty": "EASY",
+            "metadata_json": {"python_mode": "stdin"},
+            "test_cases": [
+                {
+                    "case_no": 1,
+                    "description": "small integers",
+                    "input_data": "2 3\n",
+                    "expected_output": "5",
+                    "score_weight": 1.0,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 201
+
+    evaluate_response = client.post(
+        "/api/v1/b3/evaluate",
+        json={
+            "question_id": question_id,
+            "submitted_code": "a, b = map(int, input().split())\nprint(a + b)",
+            "submission_id": "frontend-python",
+            "language": "python",
+        },
+    )
+    assert evaluate_response.status_code == 200
+    result = evaluate_response.json()
+    assert result["overall_score"] == 100.0
+    assert result["passed_count"] == 1
 
 
 def test_missing_question_endpoints_return_404() -> None:
